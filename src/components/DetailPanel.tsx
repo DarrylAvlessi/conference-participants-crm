@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Calendar,
   Clock,
@@ -7,9 +7,7 @@ import {
   UploadCloud,
   UserPlus,
   Download,
-  School,
   ChevronDown,
-  Phone,
   UserCheck,
   Eye,
   RotateCcw,
@@ -19,6 +17,7 @@ import {
   Pencil,
   ZoomIn,
   X,
+  Trash2,
 } from 'lucide-react';
 import {
   type ConferenceEvent,
@@ -44,6 +43,18 @@ interface DetailPanelProps {
     status: MentoringStatus,
     mentorName?: string
   ) => Promise<void>;
+  onClearConference: (eventId: string) => Promise<void>;
+  onDeleteParticipants: (
+    eventId: string,
+    items: { registrationId: string; participantId: string }[]
+  ) => Promise<void>;
+}
+
+interface ConfirmAction {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => Promise<void>;
 }
 
 export function DetailPanel({
@@ -56,6 +67,8 @@ export function DetailPanel({
   onOpenEditEvent,
   onUpdateFollowup,
   onUpdateMentoring,
+  onClearConference,
+  onDeleteParticipants,
 }: DetailPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterFollowup, setFilterFollowup] = useState<string>('ALL');
@@ -63,6 +76,10 @@ export function DetailPanel({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [zoomPoster, setZoomPoster] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [displayColumns, setDisplayColumns] = useState<string[]>([]);
 
   // Statistics calculation for the current conference
   const stats = useMemo(() => {
@@ -130,6 +147,123 @@ export function DetailPanel({
     });
   }, [participantsWithReg, searchQuery, filterFollowup, filterMentoring]);
 
+  // All distinct answer columns present for the current event (from uploaded files)
+  const availableColumns = useMemo(() => {
+    const set = new Set<string>();
+    participantsWithReg.forEach(({ registration }) => {
+      Object.keys(registration.answers || {}).forEach((k) => set.add(k));
+    });
+    return Array.from(set);
+  }, [participantsWithReg]);
+
+  // Load per-event displayed columns from localStorage (UI preference)
+  useEffect(() => {
+    if (!event?.id) return;
+    const key = `cpp.event.${event.id}.displayColumns`;
+    try {
+      const raw = localStorage.getItem(key);
+      const saved: string[] = raw ? JSON.parse(raw) : [];
+      setDisplayColumns(saved.filter((c) => availableColumns.includes(c)).slice(0, 3));
+    } catch {
+      setDisplayColumns([]);
+    }
+  }, [event?.id]);
+
+  // Persist choice per event
+  useEffect(() => {
+    if (!event?.id) return;
+    const key = `cpp.event.${event.id}.displayColumns`;
+    try {
+      localStorage.setItem(key, JSON.stringify(displayColumns));
+    } catch {
+      // ignore
+    }
+  }, [event?.id, displayColumns]);
+
+  const addDisplayColumn = (col: string) => {
+    setDisplayColumns((prev) =>
+      prev.includes(col) || prev.length >= 3 ? prev : [...prev, col]
+    );
+  };
+
+  const removeDisplayColumn = (col: string) => {
+    setDisplayColumns((prev) => prev.filter((c) => c !== col));
+  };
+
+  const toggleSelect = (registrationId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(registrationId)) next.delete(registrationId);
+      else next.add(registrationId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const visibleIds = filteredParticipants.map((f) => f.registration.id);
+      const allSelected = visibleIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) visibleIds.forEach((id) => next.delete(id));
+      else visibleIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const runConfirm = async () => {
+    if (!confirmAction) return;
+    setIsConfirming(true);
+    try {
+      await confirmAction.onConfirm();
+      setConfirmAction(null);
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const handleSingleDelete = (item: ParticipantWithRegistration) => {
+    setActiveMenuId(null);
+    setConfirmAction({
+      title: 'Supprimer ce participant ?',
+      message: `Le participant « ${getParticipantDisplayName(item)} » et son inscription seront supprimés définitivement de cette conférence.`,
+      confirmLabel: 'Supprimer',
+      onConfirm: async () => {
+        await onDeleteParticipants(event?.id || '', [
+          { registrationId: item.registration.id, participantId: item.participant.id },
+        ]);
+      },
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    const items = participantsWithReg
+      .filter((f) => selectedIds.has(f.registration.id))
+      .map((f) => ({ registrationId: f.registration.id, participantId: f.participant.id }));
+    setConfirmAction({
+      title: `Supprimer ${items.length} participant(s) ?`,
+      message: `Les inscriptions et profils de ${items.length} participant(s) sélectionné(s) seront supprimés définitivement.`,
+      confirmLabel: 'Supprimer la sélection',
+      onConfirm: async () => {
+        await onDeleteParticipants(event?.id || '', items);
+        setSelectedIds(new Set());
+      },
+    });
+  };
+
+  const handleClearConference = () => {
+    if (!event) return;
+    setConfirmAction({
+      title: 'Vider les données de la conférence ?',
+      message: `Tous les participants et leurs réponses seront supprimés définitivement pour « ${event.title} ». La conférence elle-même (titre, affiche, dates) sera conservée. Cette action est irréversible.`,
+      confirmLabel: 'Vider la conférence',
+      onConfirm: async () => {
+        await onClearConference(event.id);
+        setSelectedIds(new Set());
+      },
+    });
+  };
+
   const handleFollowupStatusChange = async (
     registrationId: string,
     newStatus: FollowupStatus
@@ -175,23 +309,6 @@ export function DetailPanel({
     for (const [k, v] of Object.entries(answers || {})) {
       const lk = k.toLowerCase();
       if (lk.includes('whatsapp') || lk.includes('tel') || lk.includes('phone')) {
-        return String(v);
-      }
-    }
-    return null;
-  };
-
-  // Helper to extract school/university for quick display in table
-  const getSchool = (answers: Record<string, any>): string | null => {
-    for (const [k, v] of Object.entries(answers || {})) {
-      const lk = k.toLowerCase();
-      if (
-        lk.includes('ecole') ||
-        lk.includes('école') ||
-        lk.includes('univ') ||
-        lk.includes('etablissement') ||
-        lk.includes('établissement')
-      ) {
         return String(v);
       }
     }
@@ -344,6 +461,17 @@ export function DetailPanel({
               <Download className="w-4 h-4 text-slate-500" />
               <span>Exporter CSV</span>
             </button>
+
+            <button
+              id="clear-conference-btn"
+              onClick={handleClearConference}
+              type="button"
+              className="btn-secondary inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-red-600 border-red-200 hover:bg-red-50"
+              title="Supprimer tous les participants et vider les données de la conférence"
+            >
+              <Trash2 className="w-4 h-4 text-red-500" />
+              <span>Vider la conférence</span>
+            </button>
           </div>
         </div>
 
@@ -473,6 +601,50 @@ export function DetailPanel({
                   <span className="text-[11px] font-semibold">Effacer</span>
                 </button>
               )}
+
+              {/* Per-event column picker */}
+              {availableColumns.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 py-0.5 pl-3 border-l border-slate-200">
+                  {displayColumns.map((col) => (
+                    <span
+                      key={col}
+                      className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-900 text-white"
+                    >
+                      <span className="max-w-[150px] truncate">{col}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeDisplayColumn(col)}
+                        className="text-white/70 hover:text-white cursor-pointer"
+                        title={`Retirer « ${col} »`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                  {displayColumns.length < 3 && (
+                    <select
+                      id="column-picker-select"
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value) addDisplayColumn(e.target.value);
+                      }}
+                      className="px-2 py-1.5 text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-full text-slate-600 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 cursor-pointer"
+                      title="Ajouter une colonne du fichier importé"
+                    >
+                      <option value="" disabled>
+                        + Colonne
+                      </option>
+                      {availableColumns
+                        .filter((c) => !displayColumns.includes(c))
+                        .map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -482,24 +654,41 @@ export function DetailPanel({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50/90 text-slate-700 border-b border-slate-200 font-bold">
-                <th className="py-3.5 px-5 font-bold text-slate-900">Participant</th>
-                <th className="py-3.5 px-4 font-bold text-slate-900">Contact & Établissement</th>
+                <th className="py-3.5 pl-5 pr-2 w-10">
+                  <input
+                    id="select-all-participants-checkbox"
+                    type="checkbox"
+                    checked={
+                      filteredParticipants.length > 0 &&
+                      filteredParticipants.every((f) => selectedIds.has(f.registration.id))
+                    }
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20"
+                    title="Sélectionner tous les participants affichés"
+                  />
+                </th>
+                <th className="py-3.5 pr-5 font-bold text-slate-900">Participant</th>
+                {displayColumns.map((col) => (
+                  <th key={col} className="py-3.5 px-4 font-bold text-slate-900 max-w-[200px]">
+                    {col}
+                  </th>
+                ))}
                 <th className="py-3.5 px-4 font-bold text-slate-900">Statut Suivi</th>
                 <th className="py-3.5 px-4 font-bold text-slate-900">Statut Mentorat</th>
-                <th className="py-3.5 px-5 font-bold text-slate-900 text-right">Actions</th>
+                <th className="py-3.5 pl-4 pr-5 font-bold text-slate-900 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center text-slate-400">
+                  <td colSpan={5 + displayColumns.length} className="py-16 text-center text-slate-400">
                     <div className="w-8 h-8 mx-auto mb-2 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div>
                     <p className="text-xs font-semibold">Chargement des participants...</p>
                   </td>
                 </tr>
               ) : filteredParticipants.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-16 px-4 text-center">
+                  <td colSpan={5 + displayColumns.length} className="py-16 px-4 text-center">
                     <Users className="w-12 h-12 mx-auto text-slate-300 mb-3 stroke-[1.5]" />
                     <h4 className="text-sm font-bold text-slate-800">
                       {participantsWithReg.length === 0
@@ -527,8 +716,6 @@ export function DetailPanel({
                 filteredParticipants.map((item) => {
                   const { participant, registration } = item;
                   const isUpdating = updatingId === registration.id;
-                  const whatsApp = getWhatsApp(registration.answers);
-                  const school = getSchool(registration.answers);
                   const avatarUrl = getParticipantAvatar(participant.email);
                   const displayName = getParticipantDisplayName(item);
                   const displayEmail = participant.email || getWhatsApp(registration.answers) || '';
@@ -537,10 +724,20 @@ export function DetailPanel({
                     <tr
                       key={registration.id}
                       id={`participant-row-${registration.id}`}
-                      onClick={() => onOpenParticipantDrawer(item)}
-                      className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
-                    >
-                      {/* Column 1: Participant Identity with Circular Avatar */}
+              onClick={() => onOpenParticipantDrawer(item)}
+              className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+            >
+              {/* Column 0: Checkbox Selection */}
+              <td className="py-3 pl-5 pr-2 w-10" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(registration.id)}
+                  onChange={() => toggleSelect(registration.id)}
+                  className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20"
+                  title="Sélectionner ce participant"
+                />
+              </td>
+              {/* Column 1: Participant Identity with Circular Avatar */}
                       <td className="py-3 px-5">
                         <div className="flex items-center space-x-3">
                           {/* Circular Avatar */}
@@ -571,27 +768,24 @@ export function DetailPanel({
                         </div>
                       </td>
 
-                      {/* Column 2: Contact & School */}
-                      <td className="py-3 px-4">
-                        <div className="space-y-1 max-w-xs">
-                          {whatsApp && (
-                            <div className="flex items-center space-x-1.5 text-xs text-slate-700">
-                              <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                              <span className="font-semibold">{whatsApp}</span>
-                            </div>
-                          )}
-                          {school ? (
-                            <div className="flex items-center space-x-1.5 text-xs text-slate-500 truncate">
-                              <School className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <span className="truncate">{school}</span>
-                            </div>
-                          ) : (
-                            <span className="text-[11px] text-slate-400 italic">
-                              {Object.keys(registration.answers || {}).length} champs renseignés
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                      {/* Column N: Dynamic file columns */}
+                      {displayColumns.map((col) => {
+                        const value = registration.answers?.[col];
+                        return (
+                          <td key={col} className="py-3 px-4 max-w-[200px]">
+                            {value !== undefined && value !== null && value !== '' ? (
+                              <span
+                                className="text-xs text-slate-700 block truncate"
+                                title={String(value)}
+                              >
+                                {String(value)}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 italic">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
 
                       {/* Column 3: Follow-up Status Pill Badge / Interactive Selector */}
                       <td
@@ -735,19 +929,6 @@ export function DetailPanel({
                                   <span>Voir réponses Forms</span>
                                 </button>
 
-                                {whatsApp && (
-                                  <a
-                                    href={`https://wa.me/${whatsApp.replace(/[^0-9]/g, '')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={() => setActiveMenuId(null)}
-                                    className="w-full px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center space-x-2 text-left"
-                                  >
-                                    <Phone className="w-4 h-4 text-emerald-600" />
-                                    <span>Contacter sur WhatsApp</span>
-                                  </a>
-                                )}
-
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -765,6 +946,15 @@ export function DetailPanel({
                                   <CheckCircle2 className="w-4 h-4 text-slate-500" />
                                   <span>Changer statut de suivi</span>
                                 </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleSingleDelete(item)}
+                                  className="w-full px-3.5 py-2 text-xs font-medium text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center space-x-2 text-left border-t border-slate-100"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                  <span>Supprimer le participant</span>
+                                </button>
                               </div>
                             )}
                           </div>
@@ -777,6 +967,36 @@ export function DetailPanel({
             </tbody>
           </table>
         </div>
+
+        {/* Bulk Selection Action Bar */}
+        {selectedIds.size > 0 && (
+          <div
+            id="bulk-actions-bar"
+            className="px-4 py-3 border-t border-slate-200 bg-red-50/60 flex flex-wrap items-center justify-between gap-3"
+          >
+            <span className="text-xs font-semibold text-red-700">
+              {selectedIds.size} participant(s) sélectionné(s)
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                Annuler la sélection
+              </button>
+              <button
+                id="delete-selected-participants-btn"
+                type="button"
+                onClick={handleBulkDelete}
+                className="btn-danger inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Supprimer la sélection</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Table Footer */}
         <div className="p-4 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between text-xs text-slate-500">
@@ -833,6 +1053,58 @@ export function DetailPanel({
                 className="max-h-[72vh] w-auto max-w-full object-contain rounded-lg"
                 referrerPolicy="no-referrer"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Destructive Action Confirmation Modal */}
+      {confirmAction && (
+        <div
+          id="confirm-action-modal"
+          className="fixed inset-0 z-70 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => {
+            if (!isConfirming) setConfirmAction(null);
+          }}
+        >
+          <div
+            className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start space-x-3">
+              <div className="w-11 h-11 shrink-0 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-slate-900 leading-snug">
+                  {confirmAction.title}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                  {confirmAction.message}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end space-x-2">
+              <button
+                type="button"
+                onClick={() => setConfirmAction(null)}
+                disabled={isConfirming}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={runConfirm}
+                disabled={isConfirming}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-60 inline-flex items-center space-x-2"
+              >
+                {isConfirming && (
+                  <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin"></div>
+                )}
+                <span>{confirmAction.confirmLabel}</span>
+              </button>
             </div>
           </div>
         </div>

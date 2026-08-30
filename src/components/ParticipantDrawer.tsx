@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   X,
   Mail,
-  Phone,
-  MessageSquare,
   Calendar,
   UserCheck,
   CheckCircle2,
@@ -11,7 +9,6 @@ import {
   Check,
   Save,
   FileText,
-  ExternalLink,
 } from 'lucide-react';
 import {
   type ParticipantWithRegistration,
@@ -63,23 +60,6 @@ export function ParticipantDrawer({
   const answers = registration.answers || {};
   const avatarUrl = getParticipantAvatar(participant.email);
   const displayName = getParticipantDisplayName(participantWithReg);
-
-  // Find WhatsApp or phone number in answers
-  const findWhatsAppNumber = (): string | null => {
-    for (const [key, val] of Object.entries(answers)) {
-      const k = key.toLowerCase();
-      if (k.includes('whatsapp') || k.includes('phone') || k.includes('telephone') || k.includes('tel')) {
-        const str = String(val).replace(/[^0-9+]/g, '');
-        if (str.length >= 8) return str;
-      }
-    }
-    return null;
-  };
-
-  const whatsAppNumber = findWhatsAppNumber();
-  const cleanWhatsAppUrl = whatsAppNumber
-    ? `https://wa.me/${whatsAppNumber.replace('+', '')}`
-    : null;
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -188,31 +168,6 @@ export function ParticipantDrawer({
 
         {/* Quick Communication Actions Bar */}
         <div className="px-6 py-3 bg-white border-b border-slate-200 flex flex-wrap items-center gap-2.5">
-          {cleanWhatsAppUrl && (
-            <a
-              id="whatsapp-contact-link"
-              href={cleanWhatsAppUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-xs"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>WhatsApp direct</span>
-              <ExternalLink className="w-3 h-3 opacity-80" />
-            </a>
-          )}
-
-          {participant.email && (
-            <a
-              id="email-contact-link"
-              href={`mailto:${participant.email}`}
-              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors shadow-xs"
-            >
-              <Mail className="w-4 h-4 text-slate-500" />
-              <span>Envoyer un e-mail</span>
-            </a>
-          )}
-
           {registration.createdAt && (
             <div className="ml-auto text-xs text-slate-400 flex items-center space-x-1.5">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />

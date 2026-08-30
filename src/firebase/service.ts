@@ -159,6 +159,100 @@ export async function deleteConferenceEvent(eventId: string): Promise<void> {
   }
 }
 
+// Maximum number of write operations per Firestore batch (hard limit is 500).
+const BATCH_WRITE_LIMIT = 450;
+
+/**
+ * Delete a single participant registration atomically: removes the registration,
+ * its associated participant profile and decrements the event registrantsCount.
+ */
+export async function deleteParticipantRegistration(
+  eventId: string,
+  registrationId: string,
+  participantId: string
+): Promise<void> {
+  try {
+    const batch = writeBatch(db);
+    batch.delete(doc(db, 'registrations', registrationId));
+    batch.delete(doc(db, 'participants', participantId));
+    batch.update(doc(db, 'events', eventId), { registrantsCount: increment(-1) });
+    await batch.commit();
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `registrations/${registrationId}`);
+  }
+}
+
+/**
+ * Delete several participant registrations atomically (batches of <= BATCH_WRITE_LIMIT).
+ * Each item deletes the registration + participant profile; the event registrantsCount
+ * is decremented once per batch.
+ */
+export async function deleteMultipleParticipantRegistrations(
+  eventId: string,
+  items: { registrationId: string; participantId: string }[]
+): Promise<number> {
+  let deleted = 0;
+  if (!items || items.length === 0) return deleted;
+
+  const unique = Array.from(
+    new Map(items.map((i) => [i.registrationId, i])).values()
+  );
+
+  try {
+    for (let i = 0; i < unique.length; i += BATCH_WRITE_LIMIT) {
+      const slice = unique.slice(i, i + BATCH_WRITE_LIMIT);
+      const batch = writeBatch(db);
+      slice.forEach(({ registrationId, participantId }) => {
+        batch.delete(doc(db, 'registrations', registrationId));
+        batch.delete(doc(db, 'participants', participantId));
+      });
+      batch.update(doc(db, 'events', eventId), { registrantsCount: increment(-slice.length) });
+      await batch.commit();
+      deleted += slice.length;
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, 'registrations');
+  }
+
+  return deleted;
+}
+
+/**
+ * Clear all participant data for a conference: deletes every registration and its
+ * associated participant profile, then resets the event registrantsCount to 0.
+ */
+export async function clearConferenceData(
+  eventId: string
+): Promise<{ deletedRegistrations: number }> {
+  let deletedRegistrations = 0;
+
+  try {
+    const regQuery = query(collection(db, 'registrations'), where('eventId', '==', eventId));
+    const regSnapshot = await getDocs(regQuery);
+
+    const regDocs = regSnapshot.docs;
+    for (let i = 0; i < regDocs.length; i += BATCH_WRITE_LIMIT) {
+      const slice = regDocs.slice(i, i + BATCH_WRITE_LIMIT);
+      const batch = writeBatch(db);
+      slice.forEach((regDoc) => {
+        batch.delete(regDoc.ref);
+        const participantId = regDoc.data().participantId;
+        if (participantId) {
+          batch.delete(doc(db, 'participants', participantId));
+        }
+      });
+      await batch.commit();
+      deletedRegistrations += slice.length;
+    }
+
+    await updateDoc(doc(db, 'events', eventId), { registrantsCount: 0 });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `events/${eventId}/registrations`);
+  }
+
+  return { deletedRegistrations };
+}
+
 /**
  * Real-time listener for registrations of a specific event
  */

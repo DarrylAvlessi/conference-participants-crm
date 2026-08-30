@@ -17,6 +17,9 @@ import {
   updateMentoringStatus,
   updateRegistrationNotes,
   deleteConferenceEvent,
+  deleteParticipantRegistration,
+  deleteMultipleParticipantRegistrations,
+  clearConferenceData,
 } from './firebase/service';
 import { Navbar } from './components/Navbar';
 import { MasterPanel } from './components/MasterPanel';
@@ -144,6 +147,21 @@ export default function App() {
     await deleteConferenceEvent(eventId);
   };
 
+  const handleClearConference = async (eventId: string) => {
+    await clearConferenceData(eventId);
+  };
+
+  const handleDeleteParticipants = async (
+    eventId: string,
+    items: { registrationId: string; participantId: string }[]
+  ) => {
+    if (items.length === 1) {
+      await deleteParticipantRegistration(eventId, items[0].registrationId, items[0].participantId);
+    } else {
+      await deleteMultipleParticipantRegistrations(eventId, items);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F9FAFB] text-slate-900 flex flex-col font-sans">
       {/* Top Application Navbar */}
@@ -211,6 +229,8 @@ export default function App() {
             }}
             onUpdateFollowup={handleUpdateFollowup}
             onUpdateMentoring={handleUpdateMentoring}
+            onClearConference={handleClearConference}
+            onDeleteParticipants={handleDeleteParticipants}
           />
         </div>
       </div>
