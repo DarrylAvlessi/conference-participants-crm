@@ -10,7 +10,7 @@ import {
   Database,
   RefreshCw,
 } from 'lucide-react';
-import { autoDetectColumns, SAMPLE_GOOGLE_FORMS_CSV, xlsxToRows } from '../utils/csvHelpers';
+import { SAMPLE_GOOGLE_FORMS_CSV, xlsxToRows } from '../utils/csvHelpers';
 import { batchImportCSVRows, type ImportResult } from '../firebase/service';
 
 interface CSVImportModalProps {
@@ -70,12 +70,9 @@ export function CSVImportModal({
     setRawHeaders(headers);
     setParsedRows(rows);
     setFileName(name);
-
-    // Silent auto-detection of identity columns (no mapping screen)
-    const detected = autoDetectColumns(headers);
-    setEmailField(detected.emailField);
-    setFirstNameField(detected.firstNameField);
-    setLastNameField(detected.lastNameField);
+    setEmailField('');
+    setFirstNameField('');
+    setLastNameField('');
 
     setStep('preview');
   };
@@ -286,26 +283,11 @@ export function CSVImportModal({
               </div>
 
               {/* Auto-detected identity */}
-              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
-                <span className="font-semibold text-slate-800">Identité détectée :</span>
-                {!emailField && !firstNameField && !lastNameField ? (
-                  <span className="italic text-slate-400">aucun champ identifié (profil « Inconnu »)</span>
-                ) : (
-                  [
-                    emailField && { label: 'Email', value: emailField },
-                    firstNameField && { label: 'Prénom', value: firstNameField },
-                    lastNameField && { label: 'Nom', value: lastNameField },
-                  ]
-                    .filter(Boolean)
-                    .map((f) => (
-                      <span
-                        key={f.label}
-                        className="inline-flex items-center px-2.5 py-1 rounded-lg font-medium bg-slate-100 text-slate-700 border border-slate-200"
-                      >
-                        {f.label} : {f.value}
-                      </span>
-                    ))
-                )}
+              <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                <span className="font-semibold text-slate-800">Colonnes importées :</span>
+                <span className="italic text-slate-400">
+                  toutes les colonnes sont conservées comme questions dynamiques
+                </span>
               </div>
 
               <div>
@@ -318,29 +300,12 @@ export function CSVImportModal({
                   <table className="w-full text-left text-xs border-collapse">
                     <thead className="bg-slate-50 text-slate-700 sticky top-0 border-b border-slate-200">
                       <tr>
-                        <th className="p-3 font-semibold">Identité</th>
                         <th className="p-3 font-semibold">Champs dynamiques</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {parsedRows.slice(0, 3).map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-50/60">
-                          <td className="p-3 font-medium text-slate-800 align-top">
-                            {firstNameField || lastNameField ? (
-                              <div className="flex flex-col gap-0.5">
-                                <span>
-                                  {row[firstNameField] || ''} {row[lastNameField] || ''}
-                                </span>
-                                {emailField && row[emailField] ? (
-                                  <span className="font-mono text-[11px] text-slate-500">
-                                    {row[emailField]}
-                                  </span>
-                                ) : null}
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 italic">Inconnu</span>
-                            )}
-                          </td>
                           <td className="p-3 text-slate-500 text-xs">
                             {unmappedColumns.slice(0, 3).map((c) => (
                               <div key={c} className="truncate max-w-xs">
