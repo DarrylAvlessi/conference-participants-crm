@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { type ParticipantWithRegistration } from '../types';
 
 /**
@@ -61,6 +62,68 @@ export function autoDetectColumns(headers: string[]): {
 }
 
 /**
+ * Read an .xlsx / .xls file into the same row-object shape produced by PapaParse
+ * for CSV files. The first (non-empty) row supplies the headers; every following
+ * row is an object keyed by those (trimmed) headers.
+ */
+export async function xlsxToRows(
+  file: File
+): Promise<{ headers: string[]; rows: Record<string, any>[] }> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: 'array' });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) {
+    throw new Error('Le fichier Excel ne contient aucune feuille.');
+  }
+  const sheet = workbook.Sheets[sheetName];
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    defval: '',
+    raw: false,
+  });
+
+  if (!matrix || matrix.length === 0) {
+    throw new Error('Le fichier Excel ne contient aucune donnée valide.');
+  }
+
+  // First non-empty row = headers
+  let headerRowIndex = -1;
+  const headers: string[] = [];
+  for (let i = 0; i < matrix.length; i++) {
+    const row = matrix[i] as unknown[];
+    const cleaned = (row || []).map((c) => String(c ?? '').trim());
+    if (cleaned.some((c) => c !== '')) {
+      headerRowIndex = i;
+      cleaned.forEach((c, idx) => {
+        headers[idx] = c !== '' ? c : `colonne_${idx + 1}`;
+      });
+      break;
+    }
+  }
+
+  if (headerRowIndex === -1 || headers.length === 0) {
+    throw new Error('Le fichier Excel ne contient aucune donnée valide.');
+  }
+
+  const rows: Record<string, any>[] = [];
+  for (let i = headerRowIndex + 1; i < matrix.length; i++) {
+    const row = matrix[i] as unknown[];
+    if (!row) continue;
+    const record: Record<string, any> = {};
+    let hasValue = false;
+    headers.forEach((h, idx) => {
+      const val = idx < row.length ? (row[idx] ?? '') : '';
+      const cell = typeof val === 'string' ? val.trim() : val;
+      record[h] = cell;
+      if (cell !== '' && cell !== null && cell !== undefined) hasValue = true;
+    });
+    if (hasValue) rows.push(record);
+  }
+
+  return { headers, rows };
+}
+
+/**
  * Sample Google Forms CSV content with dynamic French/African conference fields
  */
 export const SAMPLE_GOOGLE_FORMS_CSV = `Adresse e-mail,Prénom,Nom,Numéro WhatsApp,Université / École,Filière d'études,Niveau d'études,Vos attentes principales,Comment avez-vous connu la conférence ?
@@ -93,9 +156,9 @@ export function exportParticipantsToCSV(
 
   const rows = data.map((d) => {
     const row: Record<string, any> = {
-      'Prénom': d.participant.first_name,
-      'Nom': d.participant.last_name,
-      'Email': d.participant.email,
+      'Prénom': d.participant.first_name || '',
+      'Nom': d.participant.last_name || '',
+      'Email': d.participant.email || '',
       'Statut Suivi':
         d.registration.followupStatus === 'COMPLETED'
           ? 'Terminé'

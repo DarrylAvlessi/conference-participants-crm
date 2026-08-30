@@ -101,7 +101,7 @@ export function Navbar({ onRefreshNeeded }: NavbarProps) {
         <div className="flex items-center justify-between h-16">
           {/* Brand identity */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-600 flex items-center justify-center text-white shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-xs">
               <Calendar className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -109,7 +109,7 @@ export function Navbar({ onRefreshNeeded }: NavbarProps) {
                 <span className="font-bold text-slate-900 tracking-tight text-base sm:text-lg">
                   ConfTrack CRM
                 </span>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+                <span className="badge-neutral inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold">
                   Excellence Académique
                 </span>
               </div>
@@ -127,8 +127,8 @@ export function Navbar({ onRefreshNeeded }: NavbarProps) {
               className="hidden md:flex items-center space-x-1.5 px-3 py-1 rounded-xl text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200"
               title="Statut de la base Firestore"
             >
-              <Database className="w-3.5 h-3.5 text-teal-600" />
-              <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
+              <Database className="w-3.5 h-3.5 text-slate-500" />
+              <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse"></span>
               <span>Firestore connecté</span>
             </div>
 
@@ -150,13 +150,13 @@ export function Navbar({ onRefreshNeeded }: NavbarProps) {
               onClick={handleSeedDemo}
               disabled={isSeeding}
               type="button"
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100 hover:border-teal-300 transition-colors shadow-xs"
+              className="btn-secondary inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold"
               title="Injecter des conférences et participants de test"
             >
               {isSeeding ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-teal-600" />
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-600" />
               ) : (
-                <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                <Sparkles className="w-3.5 h-3.5 text-slate-600" />
               )}
               <span>{isSeeding ? 'Chargement...' : 'Démo'}</span>
             </button>
@@ -167,7 +167,7 @@ export function Navbar({ onRefreshNeeded }: NavbarProps) {
                 {currentUser ? (
                   <div className="flex items-center space-x-2 pl-2 border-l border-slate-200">
                     <div
-                      className="w-8 h-8 rounded-full bg-teal-700 text-white flex items-center justify-center text-xs font-bold overflow-hidden border border-slate-200 shadow-xs"
+                      className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold overflow-hidden border border-slate-200 shadow-xs"
                       title={currentUser.email || 'Utilisateur'}
                     >
                       {currentUser.photoURL ? (
@@ -201,7 +201,7 @@ export function Navbar({ onRefreshNeeded }: NavbarProps) {
                     id="login-google-btn"
                     onClick={handleGoogleLogin}
                     type="button"
-                    className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 transition-colors shadow-xs"
+                    className="btn-primary inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold"
                   >
                     <LogIn className="w-3.5 h-3.5" />
                     <span>Connexion</span>

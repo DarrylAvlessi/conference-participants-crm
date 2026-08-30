@@ -3,10 +3,10 @@ export type FollowupStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 export type MentoringStatus = 'NOT_REQUESTED' | 'SEEKING' | 'ASSIGNED';
 
 export interface Participant {
-  id: string; // Document ID = Email address lowercased
-  email: string;
-  first_name: string;
-  last_name: string;
+  id: string; // Auto-generated Document ID
+  email?: string;
+  first_name?: string;
+  last_name?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -26,7 +26,7 @@ export interface ConferenceEvent {
 
 export interface Registration {
   id: string; // Auto-generated Document ID
-  participantId: string; // reference to participants doc ID (email)
+  participantId: string; // reference to participants doc ID
   eventId: string; // reference to events doc ID
   followupStatus: FollowupStatus;
   mentoringStatus: MentoringStatus;
@@ -43,9 +43,9 @@ export interface ParticipantWithRegistration {
 }
 
 export interface CSVColumnMapping {
-  emailField: string;
-  firstNameField: string;
-  lastNameField: string;
+  emailField?: string;
+  firstNameField?: string;
+  lastNameField?: string;
 }
 
 export enum OperationType {

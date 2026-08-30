@@ -17,7 +17,7 @@ service cloud.firestore {
       );
     }
 
-    // Participants (deduplicated by lowercased email as doc ID)
+    // Participants (auto-generated doc IDs; email is optional data, not the key)
     match /participants/{participantId} {
       allow read, write: if true;
     }

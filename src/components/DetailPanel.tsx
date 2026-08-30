@@ -115,9 +115,9 @@ export function DetailPanel({
       const q = searchQuery.toLowerCase();
 
       const inName =
-        participant.first_name.toLowerCase().includes(q) ||
-        participant.last_name.toLowerCase().includes(q);
-      const inEmail = participant.email.toLowerCase().includes(q);
+        participant.first_name?.toLowerCase().includes(q) === true ||
+        participant.last_name?.toLowerCase().includes(q) === true;
+      const inEmail = participant.email ? participant.email.toLowerCase().includes(q) : false;
       const inMentor = (registration.assignedMentorName || '').toLowerCase().includes(q);
 
       // Search inside dynamic answers
@@ -204,9 +204,9 @@ export function DetailPanel({
         className="flex-1 bg-slate-50 flex items-center justify-center p-8 text-center h-[calc(100vh-5.5rem)]"
       >
         <div className="max-w-md bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-teal-50 flex items-center justify-center text-teal-600 mb-4 border border-teal-100">
-            <Calendar className="w-7 h-7" />
-          </div>
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-slate-600 mb-4 border border-slate-200">
+              <Calendar className="w-7 h-7" />
+            </div>
           <h2 className="text-lg font-bold text-slate-900">
             Sélectionnez une conférence
           </h2>
@@ -257,10 +257,10 @@ export function DetailPanel({
 
             <div className="space-y-2 flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-teal-700 bg-teal-50 border border-teal-200/80 px-2.5 py-0.5 rounded-full">
+                <span className="badge-neutral text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
                   Conférence sélectionnée
                 </span>
-                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-700 text-white">
+                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-900 text-white">
                   <Users className="w-3 h-3" />
                   <span>{participantsWithReg.length} participants</span>
                 </span>
@@ -276,19 +276,17 @@ export function DetailPanel({
               </h1>
 
               {/* Prominent Section Header: Date de l'événement */}
-              <div className="pt-1 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm">
-                <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-                  <Calendar className="w-4 h-4 text-teal-600" />
-                  <span className="font-bold text-slate-900">Date de l'événement :</span>
-                  <span className="font-semibold text-slate-700 capitalize">
+              <div className="pt-1 flex flex-wrap items-center gap-2">
+                <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                  <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="font-medium text-slate-700 capitalize">
                     {formatDate(event.date)}
                   </span>
                 </div>
 
-                <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-                  <Clock className="w-4 h-4 text-teal-600" />
-                  <span className="font-bold text-slate-900">Horaire :</span>
-                  <span className="text-slate-700 font-medium">
+                <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                  <Clock className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="text-slate-700 font-medium font-mono text-xs">
                     {event.startTime || '14:00'} - {event.endTime || '16:30'}
                   </span>
                 </div>
@@ -308,10 +306,10 @@ export function DetailPanel({
               id="edit-current-conference-btn"
               onClick={onOpenEditEvent}
               type="button"
-              className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-teal-800 bg-teal-50 border border-teal-200 hover:bg-teal-100 transition-colors shadow-xs cursor-pointer"
+              className="btn-secondary inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold"
               title="Modifier les informations et joindre une affiche"
             >
-              <Pencil className="w-4 h-4 text-teal-700" />
+              <Pencil className="w-4 h-4 text-slate-500" />
               <span>Modifier la conférence</span>
             </button>
 
@@ -319,7 +317,7 @@ export function DetailPanel({
               id="open-csv-import-btn"
               onClick={onOpenCSVImport}
               type="button"
-              className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 transition-colors shadow-xs cursor-pointer"
+              className="btn-primary inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold"
             >
               <UploadCloud className="w-4 h-4" />
               <span>Importer Google Forms (CSV)</span>
@@ -329,7 +327,7 @@ export function DetailPanel({
               id="open-new-participant-btn"
               onClick={onOpenNewParticipant}
               type="button"
-              className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-xs cursor-pointer"
+              className="btn-secondary inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold"
             >
               <UserPlus className="w-4 h-4 text-slate-500" />
               <span>Ajouter un participant</span>
@@ -339,7 +337,7 @@ export function DetailPanel({
               id="export-participants-csv-btn"
               onClick={() => exportParticipantsToCSV(event.title, participantsWithReg)}
               type="button"
-              className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-xs cursor-pointer"
+              className="btn-secondary inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold"
               title="Exporter la liste avec toutes les réponses dynamiques"
             >
               <Download className="w-4 h-4 text-slate-500" />
@@ -357,19 +355,19 @@ export function DetailPanel({
           </div>
 
           {/* Follow-up completed */}
-          <div className="bg-teal-50/60 rounded-xl p-3.5 border border-teal-200/70">
+          <div className="bg-emerald-50/60 rounded-xl p-3.5 border border-emerald-200/70">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-teal-800">Suivi terminé</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-teal-700 text-white">
+              <span className="text-xs font-semibold text-emerald-800">Suivi terminé</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-700 text-white">
                 {stats.total > 0
                   ? Math.round((stats.followupCompleted / stats.total) * 100)
                   : 0}
                 %
               </span>
             </div>
-            <div className="text-xl font-bold text-teal-900 mt-1">
+            <div className="text-xl font-bold text-emerald-900 mt-1">
               {stats.followupCompleted}{' '}
-              <span className="text-xs font-medium text-teal-700">/ {stats.total}</span>
+              <span className="text-xs font-medium text-emerald-700">/ {stats.total}</span>
             </div>
           </div>
 
@@ -407,7 +405,7 @@ export function DetailPanel({
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex items-center space-x-3">
               <h2 className="text-lg font-bold text-slate-900">Liste des Participants</h2>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-700 text-white">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-900 text-white">
                 {filteredParticipants.length}
               </span>
             </div>
@@ -423,7 +421,7 @@ export function DetailPanel({
                   placeholder="Rechercher par nom, email, école..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 focus:bg-white transition-all"
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 focus:bg-white transition-all"
                 />
               </div>
 
@@ -434,7 +432,7 @@ export function DetailPanel({
                   id="filter-followup-select"
                   value={filterFollowup}
                   onChange={(e) => setFilterFollowup(e.target.value)}
-                  className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 focus:bg-white"
+                  className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 focus:bg-white"
                 >
                   <option value="ALL">Tous les statuts</option>
                   <option value="NOT_STARTED">Non démarré ({stats.followupNotStarted})</option>
@@ -450,7 +448,7 @@ export function DetailPanel({
                   id="filter-mentoring-select"
                   value={filterMentoring}
                   onChange={(e) => setFilterMentoring(e.target.value)}
-                  className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 focus:bg-white"
+                  className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 focus:bg-white"
                 >
                   <option value="ALL">Tous ({stats.total})</option>
                   <option value="SEEKING">En recherche ({stats.mentoringSeeking})</option>
@@ -494,7 +492,7 @@ export function DetailPanel({
               {isLoading ? (
                 <tr>
                   <td colSpan={5} className="py-16 text-center text-slate-400">
-                    <div className="w-8 h-8 mx-auto mb-2 border-2 border-slate-300 border-t-teal-600 rounded-full animate-spin"></div>
+                    <div className="w-8 h-8 mx-auto mb-2 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div>
                     <p className="text-xs font-semibold">Chargement des participants...</p>
                   </td>
                 </tr>
@@ -509,14 +507,14 @@ export function DetailPanel({
                     </h4>
                     <p className="text-xs text-slate-500 mt-1 mb-4 max-w-sm mx-auto">
                       {participantsWithReg.length === 0
-                        ? 'Importez les réponses de votre formulaire Google Forms (CSV) ou ajoutez un participant manuellement.'
+                        ? 'Importez les réponses de votre formulaire Google Forms (CSV ou Excel) ou ajoutez un participant manuellement.'
                         : 'Modifiez ou effacez vos critères de recherche pour afficher plus de participants.'}
                     </p>
                     {participantsWithReg.length === 0 && (
                       <button
                         onClick={onOpenCSVImport}
                         type="button"
-                        className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 transition-colors shadow-xs"
+                        className="btn-primary inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-semibold"
                       >
                         <UploadCloud className="w-4 h-4" />
                         <span>Importer les réponses Google Forms</span>
@@ -543,7 +541,7 @@ export function DetailPanel({
                       <td className="py-3 px-5">
                         <div className="flex items-center space-x-3">
                           {/* Circular Avatar */}
-                          <div className="w-10 h-10 rounded-full border border-slate-200 overflow-hidden flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs bg-teal-50 text-teal-800 relative">
+                          <div className="w-10 h-10 rounded-full border border-slate-200 overflow-hidden flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs bg-slate-100 text-slate-700 relative">
                             {avatarUrl ? (
                               <img
                                 src={avatarUrl}
@@ -562,10 +560,12 @@ export function DetailPanel({
 
                           <div className="min-w-0">
                             <div className="font-semibold text-slate-900 truncate">
-                              {participant.first_name} {participant.last_name}
+                              {participant.first_name || 'Inconnu'} {participant.last_name || ''}
                             </div>
                             <div className="text-[11px] font-mono text-slate-500 truncate max-w-[220px]">
-                              {participant.email}
+                              {participant.email || (
+                                <span className="font-sans italic text-slate-400">Email non renseigné</span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -608,12 +608,12 @@ export function DetailPanel({
                                 e.target.value as FollowupStatus
                               )
                             }
-                            className={`appearance-none text-xs font-semibold py-1.5 pl-3 pr-7 rounded-full transition-all cursor-pointer shadow-2xs focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
+                            className={`appearance-none text-xs font-semibold py-1.5 pl-3 pr-7 rounded-full transition-all cursor-pointer border focus:outline-none focus:ring-2 focus:ring-slate-900/10 ${
                               registration.followupStatus === 'COMPLETED'
-                                ? 'bg-teal-700 text-white hover:bg-teal-800'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 hover:bg-emerald-100'
                                 : registration.followupStatus === 'IN_PROGRESS'
-                                ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                : 'bg-slate-500 text-white hover:bg-slate-600'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200/60 hover:bg-amber-100'
+                                : 'bg-slate-100 text-slate-600 border-slate-200/60 hover:bg-slate-200'
                             }`}
                           >
                             <option value="NOT_STARTED" className="bg-white text-slate-900">
@@ -626,10 +626,10 @@ export function DetailPanel({
                               Terminé
                             </option>
                           </select>
-                          <ChevronDown className="w-3.5 h-3.5 text-white/90 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         </div>
                         {isUpdating && (
-                          <span className="text-[10px] text-teal-600 font-semibold ml-1.5 animate-pulse">
+                          <span className="text-[10px] text-slate-500 font-semibold ml-1.5 animate-pulse">
                             Sync...
                           </span>
                         )}
@@ -651,12 +651,12 @@ export function DetailPanel({
                                   e.target.value as MentoringStatus
                                 )
                               }
-                              className={`appearance-none text-xs font-semibold py-1.5 pl-3 pr-7 rounded-full transition-all cursor-pointer shadow-2xs focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
+                              className={`appearance-none text-xs font-semibold py-1.5 pl-3 pr-7 rounded-full transition-all cursor-pointer border focus:outline-none focus:ring-2 focus:ring-slate-900/10 ${
                                 registration.mentoringStatus === 'ASSIGNED'
-                                  ? 'bg-teal-700 text-white hover:bg-teal-800'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 hover:bg-emerald-100'
                                   : registration.mentoringStatus === 'SEEKING'
-                                  ? 'bg-sky-500 text-white hover:bg-sky-600'
-                                  : 'bg-slate-500 text-white hover:bg-slate-600'
+                                  ? 'bg-sky-50 text-sky-700 border-sky-200/60 hover:bg-sky-100'
+                                  : 'bg-slate-100 text-slate-600 border-slate-200/60 hover:bg-slate-200'
                               }`}
                             >
                               <option value="NOT_REQUESTED" className="bg-white text-slate-900">
@@ -669,13 +669,13 @@ export function DetailPanel({
                                 Mentor attribué
                               </option>
                             </select>
-                            <ChevronDown className="w-3.5 h-3.5 text-white/90 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                           </div>
 
                           {/* Assigned mentor name display */}
                           {registration.mentoringStatus === 'ASSIGNED' && (
-                            <div className="text-[11px] text-teal-800 font-semibold flex items-center space-x-1">
-                              <UserCheck className="w-3 h-3 text-teal-600 shrink-0" />
+                            <div className="text-[11px] text-slate-700 font-semibold flex items-center space-x-1">
+                              <UserCheck className="w-3 h-3 text-slate-500 shrink-0" />
                               <span className="truncate max-w-[150px]">
                                 {registration.assignedMentorName || 'À attribuer'}
                               </span>
@@ -729,9 +729,9 @@ export function DetailPanel({
                                     setActiveMenuId(null);
                                     onOpenParticipantDrawer(item);
                                   }}
-                                  className="w-full px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-900 flex items-center space-x-2 text-left"
+                                  className="w-full px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center space-x-2 text-left"
                                 >
-                                  <Eye className="w-4 h-4 text-teal-600" />
+                                  <Eye className="w-4 h-4 text-slate-500" />
                                   <span>Voir réponses Forms</span>
                                 </button>
 
@@ -741,7 +741,7 @@ export function DetailPanel({
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={() => setActiveMenuId(null)}
-                                    className="w-full px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-900 flex items-center space-x-2 text-left"
+                                    className="w-full px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center space-x-2 text-left"
                                   >
                                     <Phone className="w-4 h-4 text-emerald-600" />
                                     <span>Contacter sur WhatsApp</span>
@@ -760,9 +760,9 @@ export function DetailPanel({
                                         : 'NOT_STARTED';
                                     handleFollowupStatusChange(registration.id, nextStatus);
                                   }}
-                                  className="w-full px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-900 flex items-center space-x-2 text-left border-t border-slate-100"
+                                  className="w-full px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center space-x-2 text-left border-t border-slate-100"
                                 >
-                                  <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                                  <CheckCircle2 className="w-4 h-4 text-slate-500" />
                                   <span>Changer statut de suivi</span>
                                 </button>
                               </div>
@@ -812,7 +812,7 @@ export function DetailPanel({
                     setZoomPoster(null);
                     onOpenEditEvent();
                   }}
-                  className="px-3 py-1 bg-teal-600 hover:bg-teal-500 rounded-lg text-xs font-semibold text-white transition-colors cursor-pointer flex items-center space-x-1"
+                  className="px-3 py-1 bg-slate-900 hover:bg-slate-800 rounded-lg text-xs font-semibold text-white transition-colors cursor-pointer flex items-center space-x-1"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   <span>Modifier l'affiche</span>

@@ -33,8 +33,8 @@ export function NewParticipantModal({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !firstName.trim() || !lastName.trim()) {
-      alert('Veuillez renseigner le nom, le prénom et l’email.');
+    if (!email.trim() && !firstName.trim() && !lastName.trim()) {
+      alert('Veuillez renseigner au moins un champ d’identité (nom, prénom ou email).');
       return;
     }
 
@@ -77,7 +77,7 @@ export function NewParticipantModal({
       >
         <div className="p-6 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 flex items-center justify-center shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 flex items-center justify-center shadow-xs">
               <UserPlus className="w-5 h-5" />
             </div>
             <div>
@@ -85,7 +85,7 @@ export function NewParticipantModal({
                 Inscrire un participant
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Conférence : <span className="font-bold text-teal-800">{eventTitle}</span>
+                Conférence : <span className="font-bold text-slate-700">{eventTitle}</span>
               </p>
             </div>
           </div>
@@ -103,44 +103,41 @@ export function NewParticipantModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Prénom *
+                Prénom
               </label>
               <input
                 type="text"
-                required
                 placeholder="Ex: Koffi"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Nom *
+                Nom
               </label>
               <input
                 type="text"
-                required
                 placeholder="Ex: Mensah"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
               />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Adresse e-mail (Identifiant unique dédupliqué) *
+              Adresse e-mail (facultatif)
             </label>
             <input
               type="email"
-              required
               placeholder="koffi.mensah@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 font-mono"
+              className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 font-mono"
             />
           </div>
 
@@ -154,7 +151,7 @@ export function NewParticipantModal({
                 placeholder="+229 97 00 00 00"
                 value={whatsApp}
                 onChange={(e) => setWhatsApp(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
               />
             </div>
 
@@ -167,7 +164,7 @@ export function NewParticipantModal({
                 placeholder="Ex: ENSP, UAC, INP-HB"
                 value={school}
                 onChange={(e) => setSchool(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
               />
             </div>
           </div>
@@ -180,7 +177,7 @@ export function NewParticipantModal({
               <select
                 value={followupStatus}
                 onChange={(e) => setFollowupStatus(e.target.value as FollowupStatus)}
-                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
               >
                 <option value="NOT_STARTED">Non démarré</option>
                 <option value="IN_PROGRESS">En cours</option>
@@ -195,7 +192,7 @@ export function NewParticipantModal({
               <select
                 value={mentoringStatus}
                 onChange={(e) => setMentoringStatus(e.target.value as MentoringStatus)}
-                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
               >
                 <option value="NOT_REQUESTED">Non demandé</option>
                 <option value="SEEKING">En recherche</option>
@@ -214,7 +211,7 @@ export function NewParticipantModal({
                 placeholder="Ex: Dr. Marc Dossou"
                 value={assignedMentorName}
                 onChange={(e) => setAssignedMentorName(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
               />
             </div>
           )}
@@ -228,7 +225,7 @@ export function NewParticipantModal({
               placeholder="Questions ou attentes formulées..."
               value={expectations}
               onChange={(e) => setExpectations(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 resize-none"
+              className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 resize-none"
             />
           </div>
 
@@ -243,7 +240,7 @@ export function NewParticipantModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 transition-colors shadow-xs cursor-pointer"
+              className="px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
             >
               {isSubmitting ? 'Enregistrement...' : 'Inscrire le participant'}
             </button>

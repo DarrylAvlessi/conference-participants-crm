@@ -2,4 +2,37 @@
 
 @theme {
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --color-canvas: #f9fafb;
+}
+
+@layer components {
+  /* Primary action button — Deep Slate / Navy accent.
+     Layout (inline-flex, padding, radius) stays on the element; this only sets color/state. */
+  .btn-primary {
+    @apply text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-xs cursor-pointer;
+  }
+
+  /* Secondary / ghost button on white */
+  .btn-secondary {
+    @apply text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-xs cursor-pointer;
+  }
+
+  /* Muted status badges — subtle & flat */
+  .badge-completed {
+    @apply bg-emerald-50 text-emerald-700 border border-emerald-200/60;
+  }
+  .badge-pending {
+    @apply bg-sky-50 text-sky-700 border border-sky-200/60;
+  }
+  .badge-progress {
+    @apply bg-amber-50 text-amber-700 border border-amber-200/60;
+  }
+  .badge-neutral {
+    @apply bg-slate-100 text-slate-600 border border-slate-200/60;
+  }
+
+  /* Shared focus state — subtle slate */
+  .focus-slate {
+    @apply focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400;
+  }
 }

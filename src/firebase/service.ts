@@ -22,6 +22,7 @@ import {
   type FollowupStatus,
   type MentoringStatus,
   type ParticipantWithRegistration,
+  type CSVColumnMapping,
   OperationType,
 } from '../types';
 
@@ -231,8 +232,8 @@ export async function getParticipantsByIds(
         // Fallback placeholder if participant doc was not found
         participantMap.set(id, {
           id,
-          email: id,
-          first_name: id.split('@')[0] || 'Inconnu',
+          email: '',
+          first_name: 'Inconnu',
           last_name: '',
           createdAt: new Date().toISOString(),
         });
@@ -263,8 +264,8 @@ export function subscribeToEventParticipants(
       const combined: ParticipantWithRegistration[] = registrations.map((reg) => {
         const participant = participantMap.get(reg.participantId) || {
           id: reg.participantId,
-          email: reg.participantId,
-          first_name: reg.participantId.split('@')[0],
+          email: '',
+          first_name: 'Inconnu',
           last_name: '',
           createdAt: reg.createdAt,
         };
@@ -344,65 +345,43 @@ export async function updateRegistrationNotes(
 }
 
 /**
- * Manual participant creation and registration for an event
+ * Manual participant creation and registration for an event.
+ * No deduplication: each call creates a fresh participant and registration.
  */
 export async function registerParticipantDirectly(params: {
   eventId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
   answers?: Record<string, any>;
   followupStatus?: FollowupStatus;
   mentoringStatus?: MentoringStatus;
   assignedMentorName?: string;
 }): Promise<void> {
-  const emailLower = params.email.trim().toLowerCase();
-  const participantRef = doc(db, 'participants', emailLower);
-
   try {
-    // 1. Participant document (upsert)
-    const existingPart = await getDoc(participantRef);
-    if (!existingPart.exists()) {
-      await setDoc(participantRef, {
-        email: emailLower,
-        first_name: params.firstName.trim(),
-        last_name: params.lastName.trim(),
-        createdAt: new Date().toISOString(),
-      });
-    }
+    // 1. Create a fresh participant document (auto-generated ID)
+    const participantRef = await addDoc(collection(db, 'participants'), {
+      email: (params.email || '').trim().toLowerCase() || '',
+      first_name: (params.firstName || '').trim(),
+      last_name: (params.lastName || '').trim(),
+      createdAt: new Date().toISOString(),
+    });
 
-    // 2. Check existing registration
-    const q = query(
-      collection(db, 'registrations'),
-      where('eventId', '==', params.eventId),
-      where('participantId', '==', emailLower)
-    );
-    const regSnap = await getDocs(q);
+    // 2. Create a fresh registration linking participantId and eventId
+    await addDoc(collection(db, 'registrations'), {
+      participantId: participantRef.id,
+      eventId: params.eventId,
+      followupStatus: params.followupStatus || 'NOT_STARTED',
+      mentoringStatus: params.mentoringStatus || 'NOT_REQUESTED',
+      assignedMentorName: params.assignedMentorName?.trim() || '',
+      answers: params.answers || {},
+      createdAt: new Date().toISOString(),
+    });
 
-    if (regSnap.empty) {
-      // Create registration
-      await addDoc(collection(db, 'registrations'), {
-        participantId: emailLower,
-        eventId: params.eventId,
-        followupStatus: params.followupStatus || 'NOT_STARTED',
-        mentoringStatus: params.mentoringStatus || 'NOT_REQUESTED',
-        assignedMentorName: params.assignedMentorName?.trim() || '',
-        answers: params.answers || {},
-        createdAt: new Date().toISOString(),
-      });
-
-      // Increment count on event
-      await updateDoc(doc(db, 'events', params.eventId), {
-        registrantsCount: increment(1),
-      });
-    } else {
-      // Update existing registration answers
-      const regDoc = regSnap.docs[0];
-      await updateDoc(regDoc.ref, {
-        answers: { ...regDoc.data().answers, ...(params.answers || {}) },
-        updatedAt: new Date().toISOString(),
-      });
-    }
+    // 3. Increment count on event
+    await updateDoc(doc(db, 'events', params.eventId), {
+      registrantsCount: increment(1),
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, 'registrations');
   }
@@ -411,37 +390,28 @@ export async function registerParticipantDirectly(params: {
 export interface ImportResult {
   totalRows: number;
   newParticipants: number;
-  updatedParticipants: number;
   newRegistrations: number;
-  updatedRegistrations: number;
-  skippedInvalidEmail: number;
+  skippedEmptyRows: number;
   errors: string[];
 }
 
 /**
- * Ingestion & Deduplication Logic (Firebase):
- * 1. For each row, check participants collection using lowercased email.
- * 2. Create or update document in participants.
- * 3. Create document in registrations linking participantId and eventId along with dynamic answers object.
- * 4. Increment registrantsCount in the corresponding events document.
+ * Ingestion (additive, no deduplication):
+ * 1. For each row, create a fresh participant document (auto-generated ID).
+ * 2. Create a fresh registration linking participantId and eventId with dynamic answers.
+ * 3. Increment registrantsCount in the corresponding events document.
  */
 export async function batchImportCSVRows(
   eventId: string,
   rows: Record<string, any>[],
-  mapping: {
-    emailField: string;
-    firstNameField: string;
-    lastNameField: string;
-  },
+  mapping: CSVColumnMapping,
   onProgress?: (processed: number, total: number) => void
 ): Promise<ImportResult> {
   const result: ImportResult = {
     totalRows: rows.length,
     newParticipants: 0,
-    updatedParticipants: 0,
     newRegistrations: 0,
-    updatedRegistrations: 0,
-    skippedInvalidEmail: 0,
+    skippedEmptyRows: 0,
     errors: [],
   };
 
@@ -452,19 +422,12 @@ export async function batchImportCSVRows(
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
-    const rawEmail = row[mapping.emailField]?.toString().trim();
 
-    if (!rawEmail || !rawEmail.includes('@')) {
-      result.skippedInvalidEmail++;
-      if (onProgress) onProgress(i + 1, rows.length);
-      continue;
-    }
+    const firstName = (row[mapping.firstNameField || '']?.toString() || '').trim();
+    const lastName = (row[mapping.lastNameField || '']?.toString() || '').trim();
+    const rawEmail = (row[mapping.emailField || '']?.toString() || '').trim().toLowerCase();
 
-    const emailLower = rawEmail.toLowerCase();
-    const firstName = (row[mapping.firstNameField]?.toString() || '').trim();
-    const lastName = (row[mapping.lastNameField]?.toString() || '').trim();
-
-    // Extract dynamic answers for all columns except the 3 mapped ones
+    // Extract dynamic answers for all columns except the mapped ones
     const dynamicAnswers: Record<string, any> = {};
     for (const [key, val] of Object.entries(row)) {
       if (
@@ -479,67 +442,37 @@ export async function batchImportCSVRows(
       }
     }
 
+    // Skip fully-empty rows (no identity and no dynamic answers)
+    if (!firstName && !lastName && !rawEmail && Object.keys(dynamicAnswers).length === 0) {
+      result.skippedEmptyRows++;
+      if (onProgress) onProgress(i + 1, rows.length);
+      continue;
+    }
+
     try {
-      // 1. Participant deduplication check
-      const participantRef = doc(db, 'participants', emailLower);
-      const participantSnap = await getDoc(participantRef);
+      // 1. Create a fresh participant document
+      const participantRef = await addDoc(collection(db, 'participants'), {
+        email: rawEmail,
+        first_name: firstName,
+        last_name: lastName,
+        createdAt: new Date().toISOString(),
+      });
+      result.newParticipants++;
 
-      if (!participantSnap.exists()) {
-        await setDoc(participantRef, {
-          email: emailLower,
-          first_name: firstName || emailLower.split('@')[0],
-          last_name: lastName || '',
-          createdAt: new Date().toISOString(),
-        });
-        result.newParticipants++;
-      } else {
-        const existingData = participantSnap.data();
-        // Update first/last name if existing was empty and new is available
-        const needUpdate =
-          (!existingData.first_name && firstName) || (!existingData.last_name && lastName);
-        if (needUpdate) {
-          await updateDoc(participantRef, {
-            first_name: firstName || existingData.first_name,
-            last_name: lastName || existingData.last_name,
-            updatedAt: new Date().toISOString(),
-          });
-          result.updatedParticipants++;
-        }
-      }
-
-      // 2. Check if already registered for this event
-      const regQuery = query(
-        collection(db, 'registrations'),
-        where('eventId', '==', eventId),
-        where('participantId', '==', emailLower)
-      );
-      const regSnap = await getDocs(regQuery);
-
-      if (regSnap.empty) {
-        // Create new registration
-        await addDoc(collection(db, 'registrations'), {
-          participantId: emailLower,
-          eventId,
-          followupStatus: 'NOT_STARTED',
-          mentoringStatus: 'NOT_REQUESTED',
-          answers: dynamicAnswers,
-          createdAt: new Date().toISOString(),
-        });
-        result.newRegistrations++;
-        totalNewRegistrations++;
-      } else {
-        // Registration already exists: merge new dynamic answers
-        const regDoc = regSnap.docs[0];
-        const existingAnswers = regDoc.data().answers || {};
-        await updateDoc(regDoc.ref, {
-          answers: { ...existingAnswers, ...dynamicAnswers },
-          updatedAt: new Date().toISOString(),
-        });
-        result.updatedRegistrations++;
-      }
+      // 2. Create a fresh registration
+      await addDoc(collection(db, 'registrations'), {
+        participantId: participantRef.id,
+        eventId,
+        followupStatus: 'NOT_STARTED',
+        mentoringStatus: 'NOT_REQUESTED',
+        answers: dynamicAnswers,
+        createdAt: new Date().toISOString(),
+      });
+      result.newRegistrations++;
+      totalNewRegistrations++;
     } catch (err: any) {
-      console.error(`Error importing row for ${emailLower}:`, err);
-      result.errors.push(`${emailLower}: ${err?.message || 'Erreur inconnue'}`);
+      console.error(`Error importing row for ${firstName} ${lastName}:`, err);
+      result.errors.push(`${firstName} ${lastName} (${rawEmail || 'sans email'}): ${err?.message || 'Erreur inconnue'}`);
     }
 
     if (onProgress) {
@@ -751,7 +684,7 @@ export async function seedDemoData(): Promise<void> {
         },
       },
       {
-        email: 'koffi.mensah@gmail.com', // Demonstrates cross-event participant deduplication!
+        email: 'koffi.mensah@gmail.com',
         first_name: 'Koffi',
         last_name: 'Mensah',
         followupStatus: 'NOT_STARTED' as FollowupStatus,

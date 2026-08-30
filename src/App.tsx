@@ -145,7 +145,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#F9FAFB] text-slate-900 flex flex-col font-sans">
       {/* Top Application Navbar */}
       <Navbar />
 
@@ -157,7 +157,7 @@ export default function App() {
             <button
               onClick={() => setMobileView('master')}
               type="button"
-              className="inline-flex items-center space-x-1.5 text-xs font-semibold text-teal-700 hover:text-teal-900 cursor-pointer"
+              className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-900 hover:text-slate-700 cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Retour aux conférences</span>
