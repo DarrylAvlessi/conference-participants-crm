@@ -28,6 +28,7 @@ import {
 } from '../types';
 import { exportParticipantsToCSV } from '../utils/csvHelpers';
 import { getParticipantAvatar, getConferenceImage } from '../utils/imageHelpers';
+import { getParticipantDisplayName, getParticipantInitial } from '../utils/participantLabel';
 
 interface DetailPanelProps {
   event: ConferenceEvent | null;
@@ -529,6 +530,8 @@ export function DetailPanel({
                   const whatsApp = getWhatsApp(registration.answers);
                   const school = getSchool(registration.answers);
                   const avatarUrl = getParticipantAvatar(participant.email);
+                  const displayName = getParticipantDisplayName(item);
+                  const displayEmail = participant.email || getWhatsApp(registration.answers) || '';
 
                   return (
                     <tr
@@ -545,25 +548,22 @@ export function DetailPanel({
                             {avatarUrl ? (
                               <img
                                 src={avatarUrl}
-                                alt={`${participant.first_name} ${participant.last_name}`}
+                                alt={displayName}
                                 className="w-full h-full object-cover"
                                 referrerPolicy="no-referrer"
                                 loading="lazy"
                               />
                             ) : (
-                              <span>
-                                {(participant.first_name || 'P').charAt(0).toUpperCase()}
-                                {(participant.last_name || '').charAt(0).toUpperCase()}
-                              </span>
+                              <span>{getParticipantInitial(item)}</span>
                             )}
                           </div>
 
                           <div className="min-w-0">
                             <div className="font-semibold text-slate-900 truncate">
-                              {participant.first_name || 'Inconnu'} {participant.last_name || ''}
+                              {displayName}
                             </div>
                             <div className="text-[11px] font-mono text-slate-500 truncate max-w-[220px]">
-                              {participant.email || (
+                              {displayEmail || (
                                 <span className="font-sans italic text-slate-400">Email non renseigné</span>
                               )}
                             </div>

@@ -19,6 +19,7 @@ import {
   type MentoringStatus,
 } from '../types';
 import { getParticipantAvatar } from '../utils/imageHelpers';
+import { getParticipantDisplayName, getParticipantInitial } from '../utils/participantLabel';
 
 interface ParticipantDrawerProps {
   participantWithReg: ParticipantWithRegistration | null;
@@ -61,6 +62,7 @@ export function ParticipantDrawer({
   const { participant, registration } = participantWithReg;
   const answers = registration.answers || {};
   const avatarUrl = getParticipantAvatar(participant.email);
+  const displayName = getParticipantDisplayName(participantWithReg);
 
   // Find WhatsApp or phone number in answers
   const findWhatsAppNumber = (): string | null => {
@@ -132,21 +134,18 @@ export function ParticipantDrawer({
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
-                  alt={`${participant.first_name} ${participant.last_name}`}
+                  alt={displayName}
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <span>
-                  {(participant.first_name || 'P').charAt(0).toUpperCase()}
-                  {(participant.last_name || '').charAt(0).toUpperCase()}
-                </span>
+                <span>{getParticipantInitial(participantWithReg)}</span>
               )}
             </div>
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                  {participant.first_name || 'Inconnu'} {participant.last_name || ''}
+                  {displayName}
                 </h2>
                 <span className="badge-neutral inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold">
                   Participant
