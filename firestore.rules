@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "darrylavlessi@gmail.com" ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Participants (deduplicated by lowercased email as doc ID)
+    match /participants/{participantId} {
+      allow read, write: if true;
+    }
+
+    // Events (Conferences)
+    match /events/{eventId} {
+      allow read, write: if true;
+    }
+
+    // Registrations (Pivot linking participantId and eventId with tracking & dynamic answers)
+    match /registrations/{registrationId} {
+      allow read, write: if true;
+    }
+
+    // Connection validation test
+    match /test/connection {
+      allow read, write: if true;
+    }
+  }
+}

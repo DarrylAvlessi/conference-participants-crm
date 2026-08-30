@@ -1,0 +1,279 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { useState, useEffect } from 'react';
+import {
+  type ConferenceEvent,
+  type ParticipantWithRegistration,
+  type FollowupStatus,
+  type MentoringStatus,
+} from './types';
+import {
+  subscribeToEvents,
+  subscribeToEventParticipants,
+  updateFollowupStatus,
+  updateMentoringStatus,
+  updateRegistrationNotes,
+  deleteConferenceEvent,
+} from './firebase/service';
+import { Navbar } from './components/Navbar';
+import { MasterPanel } from './components/MasterPanel';
+import { DetailPanel } from './components/DetailPanel';
+import { ParticipantDrawer } from './components/ParticipantDrawer';
+import { CSVImportModal } from './components/CSVImportModal';
+import { NewEventModal } from './components/NewEventModal';
+import { NewParticipantModal } from './components/NewParticipantModal';
+import { EditEventModal } from './components/EditEventModal';
+import { ArrowLeft, Sparkles, Calendar } from 'lucide-react';
+
+export default function App() {
+  const [events, setEvents] = useState<ConferenceEvent[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [participantsWithReg, setParticipantsWithReg] = useState<
+    ParticipantWithRegistration[]
+  >([]);
+  const [isEventsLoading, setIsEventsLoading] = useState(true);
+  const [isParticipantsLoading, setIsParticipantsLoading] = useState(false);
+
+  // Modals & Drawer states
+  const [selectedParticipantItem, setSelectedParticipantItem] =
+    useState<ParticipantWithRegistration | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isCSVModalOpen, setIsCSVModalOpen] = useState(false);
+  const [isNewEventModalOpen, setIsNewEventModalOpen] = useState(false);
+  const [isNewParticipantModalOpen, setIsNewParticipantModalOpen] = useState(false);
+  const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false);
+  const [eventToEdit, setEventToEdit] = useState<ConferenceEvent | null>(null);
+
+  // Mobile layout state: show list or detail
+  const [mobileView, setMobileView] = useState<'master' | 'detail'>('master');
+
+  // Subscribe to conferences in real-time
+  useEffect(() => {
+    setIsEventsLoading(true);
+    const unsubscribe = subscribeToEvents(
+      (loadedEvents) => {
+        setEvents(loadedEvents);
+        setIsEventsLoading(false);
+
+        // Auto-select first event if none selected
+        setSelectedEventId((prev) => {
+          if (!prev && loadedEvents.length > 0) {
+            return loadedEvents[0].id;
+          }
+          // If previous event was deleted, select first available
+          if (prev && !loadedEvents.some((e) => e.id === prev)) {
+            return loadedEvents.length > 0 ? loadedEvents[0].id : null;
+          }
+          return prev;
+        });
+      },
+      (error) => {
+        console.error('Error fetching events:', error);
+        setIsEventsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Subscribe to participants & registrations when selectedEventId changes
+  useEffect(() => {
+    if (!selectedEventId) {
+      setParticipantsWithReg([]);
+      return;
+    }
+
+    setIsParticipantsLoading(true);
+    const unsubscribe = subscribeToEventParticipants(
+      selectedEventId,
+      (data) => {
+        setParticipantsWithReg(data);
+        setIsParticipantsLoading(false);
+
+        // Keep active drawer participant data synchronized in real-time
+        setSelectedParticipantItem((prev) => {
+          if (!prev) return null;
+          const updated = data.find((d) => d.registration.id === prev.registration.id);
+          return updated || prev;
+        });
+      },
+      (error) => {
+        console.error('Error fetching event participants:', error);
+        setIsParticipantsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [selectedEventId]);
+
+  const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
+
+  const handleSelectEvent = (eventId: string) => {
+    setSelectedEventId(eventId);
+    setMobileView('detail');
+  };
+
+  const handleOpenParticipantDrawer = (item: ParticipantWithRegistration) => {
+    setSelectedParticipantItem(item);
+    setIsDrawerOpen(true);
+  };
+
+  const handleUpdateFollowup = async (
+    registrationId: string,
+    status: FollowupStatus
+  ) => {
+    await updateFollowupStatus(registrationId, status);
+  };
+
+  const handleUpdateMentoring = async (
+    registrationId: string,
+    status: MentoringStatus,
+    mentorName?: string
+  ) => {
+    await updateMentoringStatus(registrationId, status, mentorName);
+  };
+
+  const handleUpdateNotes = async (registrationId: string, notes: string) => {
+    await updateRegistrationNotes(registrationId, notes);
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    await deleteConferenceEvent(eventId);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+      {/* Top Application Navbar */}
+      <Navbar />
+
+      {/* Main Master-Detail Screen */}
+      <div className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 flex flex-col lg:flex-row gap-6 overflow-hidden relative">
+        {/* Mobile View Switcher Toolbar */}
+        <div className="lg:hidden bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-xs mb-2">
+          {mobileView === 'detail' && (
+            <button
+              onClick={() => setMobileView('master')}
+              type="button"
+              className="inline-flex items-center space-x-1.5 text-xs font-semibold text-teal-700 hover:text-teal-900 cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Retour aux conférences</span>
+            </button>
+          )}
+          <span className="text-xs font-bold text-slate-700 ml-auto">
+            {mobileView === 'master'
+              ? 'Toutes les conférences'
+              : selectedEvent?.title || 'Détails'}
+          </span>
+        </div>
+
+        {/* Master Panel (Left) */}
+        <div
+          className={`${
+            mobileView === 'master' ? 'block' : 'hidden lg:block'
+          } w-full lg:w-96 shrink-0`}
+        >
+          <MasterPanel
+            events={events}
+            selectedEventId={selectedEventId}
+            onSelectEvent={handleSelectEvent}
+            onOpenNewEventModal={() => setIsNewEventModalOpen(true)}
+            onDeleteEvent={handleDeleteEvent}
+            onEditEvent={(ev) => {
+              setEventToEdit(ev);
+              setIsEditEventModalOpen(true);
+            }}
+            isLoading={isEventsLoading}
+          />
+        </div>
+
+        {/* Detail Panel (Right) */}
+        <div
+          className={`${
+            mobileView === 'detail' ? 'block' : 'hidden lg:block'
+          } flex-1 w-full min-w-0 overflow-hidden`}
+        >
+          <DetailPanel
+            event={selectedEvent}
+            participantsWithReg={participantsWithReg}
+            isLoading={isParticipantsLoading}
+            onOpenCSVImport={() => setIsCSVModalOpen(true)}
+            onOpenNewParticipant={() => setIsNewParticipantModalOpen(true)}
+            onOpenParticipantDrawer={handleOpenParticipantDrawer}
+            onOpenEditEvent={() => {
+              if (selectedEvent) {
+                setEventToEdit(selectedEvent);
+                setIsEditEventModalOpen(true);
+              }
+            }}
+            onUpdateFollowup={handleUpdateFollowup}
+            onUpdateMentoring={handleUpdateMentoring}
+          />
+        </div>
+      </div>
+
+      {/* Slide-over Side Drawer for dynamic Google Forms answers & contact */}
+      <ParticipantDrawer
+        participantWithReg={selectedParticipantItem}
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onUpdateFollowup={handleUpdateFollowup}
+        onUpdateMentoring={handleUpdateMentoring}
+        onUpdateNotes={handleUpdateNotes}
+      />
+
+      {/* Edit Conference Modal */}
+      <EditEventModal
+        event={eventToEdit}
+        isOpen={isEditEventModalOpen}
+        onClose={() => {
+          setIsEditEventModalOpen(false);
+          setEventToEdit(null);
+        }}
+        onEventUpdated={(eventId) => {
+          // Event state updates automatically via Firestore snapshot
+          setSelectedEventId(eventId);
+        }}
+      />
+
+      {/* CSV / Google Forms Import Modal */}
+      {selectedEvent && (
+        <CSVImportModal
+          eventId={selectedEvent.id}
+          eventTitle={selectedEvent.title}
+          isOpen={isCSVModalOpen}
+          onClose={() => setIsCSVModalOpen(false)}
+          onImportComplete={() => {
+            // Participant list auto-updates via Firestore onSnapshot
+          }}
+        />
+      )}
+
+      {/* New Conference Creation Modal */}
+      <NewEventModal
+        isOpen={isNewEventModalOpen}
+        onClose={() => setIsNewEventModalOpen(false)}
+        onEventCreated={(newEventId) => {
+          setSelectedEventId(newEventId);
+          setMobileView('detail');
+        }}
+      />
+
+      {/* Manual Participant Add Modal */}
+      {selectedEvent && (
+        <NewParticipantModal
+          eventId={selectedEvent.id}
+          eventTitle={selectedEvent.title}
+          isOpen={isNewParticipantModalOpen}
+          onClose={() => setIsNewParticipantModalOpen(false)}
+          onParticipantAdded={() => {
+            // Participant list auto-updates via Firestore onSnapshot
+          }}
+        />
+      )}
+    </div>
+  );
+}

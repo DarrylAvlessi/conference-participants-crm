@@ -1,0 +1,136 @@
+{
+  "entities": {
+    "Participant": {
+      "title": "Participant",
+      "description": "Minimal persistent identity deduplicated by lowercase email address",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Participant lowercase email address",
+          "maxLength": 254
+        },
+        "first_name": {
+          "type": "string",
+          "description": "Participant first name",
+          "maxLength": 100
+        },
+        "last_name": {
+          "type": "string",
+          "description": "Participant last name",
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the participant document was created"
+        }
+      },
+      "required": ["email", "first_name", "last_name"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "One-day conference or seminar with specific time slots",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Event title",
+          "maxLength": 200
+        },
+        "date": {
+          "type": "string",
+          "description": "Event date (YYYY-MM-DD or formatted date string)",
+          "maxLength": 50
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Start time e.g. 14:00",
+          "maxLength": 20
+        },
+        "endTime": {
+          "type": "string",
+          "description": "End time e.g. 16:00",
+          "maxLength": 20
+        },
+        "registrantsCount": {
+          "type": "number",
+          "description": "Total number of registrations for this event"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional conference description or key objectives",
+          "maxLength": 2000
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Conference poster or flyer image URL or compressed image data"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the event document was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the event document was last updated"
+        }
+      },
+      "required": ["title", "date", "startTime", "endTime"]
+    },
+    "Registration": {
+      "title": "Registration",
+      "description": "Pivot document linking participant to event with tracking status and dynamic form answers",
+      "type": "object",
+      "properties": {
+        "participantId": {
+          "type": "string",
+          "description": "Document ID of the participant (email)",
+          "maxLength": 254
+        },
+        "eventId": {
+          "type": "string",
+          "description": "Document ID of the event",
+          "maxLength": 128
+        },
+        "followupStatus": {
+          "type": "string",
+          "enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
+          "description": "Follow-up tracking status"
+        },
+        "mentoringStatus": {
+          "type": "string",
+          "enum": ["NOT_REQUESTED", "SEEKING", "ASSIGNED"],
+          "description": "Mentorship request status"
+        },
+        "assignedMentorName": {
+          "type": "string",
+          "description": "Optional name of the mentor assigned to this participant",
+          "maxLength": 150
+        },
+        "answers": {
+          "type": "object",
+          "description": "Dynamic key-value map storing form answers (school, WhatsApp, expectations, etc.)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp of registration"
+        }
+      },
+      "required": ["participantId", "eventId", "followupStatus", "mentoringStatus"]
+    }
+  },
+  "firestore": {
+    "/participants/{participantId}": {
+      "schema": "Participant",
+      "description": "Participants indexed by lowercased email ID"
+    },
+    "/events/{eventId}": {
+      "schema": "Event",
+      "description": "Conferences list and metadata"
+    },
+    "/registrations/{registrationId}": {
+      "schema": "Registration",
+      "description": "Participant registrations per conference"
+    }
+  }
+}
