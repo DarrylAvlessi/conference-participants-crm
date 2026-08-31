@@ -178,25 +178,25 @@ export function CSVImportModal({
   return (
     <div
       id="csv-import-modal-backdrop"
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
     >
       <div
         id="csv-import-modal-content"
-        className="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+        className="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[92dvh] my-auto"
       >
-              {/* Modal Header */}
-        <div className="p-6 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-          <div>
+        {/* Modal Header */}
+        <div className="p-4 sm:p-6 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
+          <div className="min-w-0">
             <div className="flex items-center space-x-2.5">
-              <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 flex items-center justify-center shadow-xs">
-                <FileSpreadsheet className="w-5 h-5" />
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 flex items-center justify-center shadow-xs shrink-0">
+                <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                Importation Google Forms / CSV / Excel
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight truncate">
+                Importation Google Forms / Excel
               </h2>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Conférence cible : <span className="font-bold text-slate-700">{eventTitle}</span>
+            <p className="text-xs text-slate-500 mt-1 truncate">
+              Conférence : <span className="font-bold text-slate-700">{eventTitle}</span>
             </p>
           </div>
 
@@ -206,14 +206,14 @@ export function CSVImportModal({
               onClose();
             }}
             type="button"
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 flex-1 overflow-y-auto">
+        <div className="p-4 sm:p-6 flex-1 overflow-y-auto">
           {/* STEP 1: Upload */}
           {step === 'upload' && (
             <div className="space-y-4">

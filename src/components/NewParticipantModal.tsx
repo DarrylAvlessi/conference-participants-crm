@@ -25,6 +25,7 @@ export function NewParticipantModal({
   const [school, setSchool] = useState('');
   const [expectations, setExpectations] = useState('');
   const [followupStatus, setFollowupStatus] = useState<FollowupStatus>('NOT_STARTED');
+  const [assignedFollowupStaffName, setAssignedFollowupStaffName] = useState('');
   const [mentoringStatus, setMentoringStatus] = useState<MentoringStatus>('NOT_REQUESTED');
   const [assignedMentorName, setAssignedMentorName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,6 +53,7 @@ export function NewParticipantModal({
         lastName: lastName.trim(),
         answers,
         followupStatus,
+        assignedFollowupStaffName: assignedFollowupStaffName.trim(),
         mentoringStatus,
         assignedMentorName: mentoringStatus === 'ASSIGNED' ? assignedMentorName.trim() : '',
       });
@@ -69,22 +71,22 @@ export function NewParticipantModal({
   return (
     <div
       id="new-participant-modal-backdrop"
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
     >
       <div
         id="new-participant-modal-content"
-        className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden"
+        className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden my-auto max-h-[92dvh] flex flex-col"
       >
-        <div className="p-6 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div className="p-4 sm:p-6 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 flex items-center justify-center shadow-xs">
-              <UserPlus className="w-5 h-5" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 flex items-center justify-center shadow-xs shrink-0">
+              <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-900 tracking-tight">
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight truncate">
                 Inscrire un participant
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5 truncate">
                 Conférence : <span className="font-bold text-slate-700">{eventTitle}</span>
               </p>
             </div>
@@ -93,13 +95,13 @@ export function NewParticipantModal({
           <button
             onClick={onClose}
             type="button"
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto flex-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -187,18 +189,31 @@ export function NewParticipantModal({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Statut du mentorat
+                Chargé du suivi (spirituel)
               </label>
-              <select
-                value={mentoringStatus}
-                onChange={(e) => setMentoringStatus(e.target.value as MentoringStatus)}
+              <input
+                type="text"
+                placeholder="Ex: Pasteur Samuel, Frère Thomas..."
+                value={assignedFollowupStaffName}
+                onChange={(e) => setAssignedFollowupStaffName(e.target.value)}
                 className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
-              >
-                <option value="NOT_REQUESTED">Non demandé</option>
-                <option value="SEEKING">En recherche</option>
-                <option value="ASSIGNED">Mentor attribué</option>
-              </select>
+              />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Statut du mentorat
+            </label>
+            <select
+              value={mentoringStatus}
+              onChange={(e) => setMentoringStatus(e.target.value as MentoringStatus)}
+              className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
+            >
+              <option value="NOT_REQUESTED">Non demandé</option>
+              <option value="SEEKING">En recherche</option>
+              <option value="ASSIGNED">Mentor attribué</option>
+            </select>
           </div>
 
           {mentoringStatus === 'ASSIGNED' && (

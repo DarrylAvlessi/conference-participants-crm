@@ -176,11 +176,11 @@ export function EditEventModal({
       >
         <div
           id="edit-event-modal-content"
-          className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-6 max-h-[90vh] flex flex-col"
+          className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-auto max-h-[92dvh] flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-5 sm:p-6 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+          <div className="p-4 sm:p-6 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 flex items-center justify-center shadow-xs">
                 <Calendar className="w-5 h-5" />
@@ -205,7 +205,7 @@ export function EditEventModal({
           </div>
 
           {/* Form Body */}
-          <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 flex-1">
             {/* Title */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -516,10 +516,10 @@ export function EditEventModal({
       {/* Lightbox zoom modal */}
       {zoomPoster && (
         <div
-          className="fixed inset-0 z-60 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-60 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
           onClick={() => setZoomPoster(null)}
         >
-          <div className="relative max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl border border-white/20 shadow-2xl bg-black">
+          <div className="relative max-w-2xl max-h-[88dvh] overflow-hidden rounded-2xl border border-white/20 shadow-2xl bg-black">
             <button
               onClick={() => setZoomPoster(null)}
               type="button"
@@ -530,7 +530,7 @@ export function EditEventModal({
             <img
               src={zoomPoster}
               alt="Aperçu grand format"
-              className="max-h-[80vh] w-auto object-contain mx-auto"
+              className="max-h-[82dvh] w-auto object-contain mx-auto"
               referrerPolicy="no-referrer"
             />
           </div>

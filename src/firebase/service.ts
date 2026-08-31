@@ -23,8 +23,12 @@ import {
   type MentoringStatus,
   type ParticipantWithRegistration,
   type CSVColumnMapping,
+  type UserProfile,
+  type UserRole,
+  type UserStatus,
   OperationType,
 } from '../types';
+import type { User } from 'firebase/auth';
 
 /**
  * Real-time listener for all conferences (events)
@@ -276,6 +280,7 @@ export function subscribeToRegistrations(
           followupStatus: (data.followupStatus as FollowupStatus) || 'NOT_STARTED',
           mentoringStatus: (data.mentoringStatus as MentoringStatus) || 'NOT_REQUESTED',
           assignedMentorName: data.assignedMentorName || '',
+          assignedFollowupStaffName: data.assignedFollowupStaffName || '',
           answers: data.answers || {},
           notes: data.notes || '',
           createdAt: data.createdAt || new Date().toISOString(),
@@ -394,6 +399,24 @@ export async function updateFollowupStatus(
 }
 
 /**
+ * Update assigned spiritual followup coordinator in real-time
+ */
+export async function updateFollowupStaff(
+  registrationId: string,
+  assignedFollowupStaffName: string
+): Promise<void> {
+  try {
+    const regRef = doc(db, 'registrations', registrationId);
+    await updateDoc(regRef, {
+      assignedFollowupStaffName: assignedFollowupStaffName.trim(),
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `registrations/${registrationId}`);
+  }
+}
+
+/**
  * Update mentoring status and optional mentor name in real-time
  */
 export async function updateMentoringStatus(
@@ -409,10 +432,6 @@ export async function updateMentoringStatus(
     };
     if (assignedMentorName !== undefined) {
       updates.assignedMentorName = assignedMentorName.trim();
-    }
-    if (status !== 'ASSIGNED' && assignedMentorName === undefined) {
-      // Clear mentor name if changed away from ASSIGNED
-      // or keep it for history if desired; keeping it is fine or clearing
     }
     await updateDoc(regRef, updates);
   } catch (error) {
@@ -439,6 +458,66 @@ export async function updateRegistrationNotes(
 }
 
 /**
+ * Update both participant details (name, email) and registration details (answers, follow-up, mentoring, notes)
+ */
+export async function updateParticipantAndRegistration(params: {
+  participantId: string;
+  registrationId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  assignedFollowupStaffName?: string;
+  assignedMentorName?: string;
+  followupStatus?: FollowupStatus;
+  mentoringStatus?: MentoringStatus;
+  answers?: Record<string, any>;
+  notes?: string;
+}): Promise<void> {
+  try {
+    const batch = writeBatch(db);
+
+    // 1. Update participant document
+    const participantRef = doc(db, 'participants', params.participantId);
+    batch.update(participantRef, {
+      first_name: params.firstName.trim(),
+      last_name: params.lastName.trim(),
+      email: params.email.trim().toLowerCase(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    // 2. Update registration document
+    const regRef = doc(db, 'registrations', params.registrationId);
+    const regUpdates: Record<string, any> = {
+      updatedAt: new Date().toISOString(),
+    };
+    if (params.assignedFollowupStaffName !== undefined) {
+      regUpdates.assignedFollowupStaffName = params.assignedFollowupStaffName.trim();
+    }
+    if (params.assignedMentorName !== undefined) {
+      regUpdates.assignedMentorName = params.assignedMentorName.trim();
+    }
+    if (params.followupStatus !== undefined) {
+      regUpdates.followupStatus = params.followupStatus;
+    }
+    if (params.mentoringStatus !== undefined) {
+      regUpdates.mentoringStatus = params.mentoringStatus;
+    }
+    if (params.answers !== undefined) {
+      regUpdates.answers = params.answers;
+    }
+    if (params.notes !== undefined) {
+      regUpdates.notes = params.notes.trim();
+    }
+
+    batch.update(regRef, regUpdates);
+
+    await batch.commit();
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `registrations/${params.registrationId}`);
+  }
+}
+
+/**
  * Manual participant creation and registration for an event.
  * No deduplication: each call creates a fresh participant and registration.
  */
@@ -451,6 +530,7 @@ export async function registerParticipantDirectly(params: {
   followupStatus?: FollowupStatus;
   mentoringStatus?: MentoringStatus;
   assignedMentorName?: string;
+  assignedFollowupStaffName?: string;
 }): Promise<void> {
   try {
     // 1. Create a fresh participant document (auto-generated ID)
@@ -468,6 +548,7 @@ export async function registerParticipantDirectly(params: {
       followupStatus: params.followupStatus || 'NOT_STARTED',
       mentoringStatus: params.mentoringStatus || 'NOT_REQUESTED',
       assignedMentorName: params.assignedMentorName?.trim() || '',
+      assignedFollowupStaffName: params.assignedFollowupStaffName?.trim() || '',
       answers: params.answers || {},
       createdAt: new Date().toISOString(),
     });
@@ -622,6 +703,7 @@ export async function seedDemoData(): Promise<void> {
         first_name: 'Koffi',
         last_name: 'Mensah',
         followupStatus: 'COMPLETED' as FollowupStatus,
+        assignedFollowupStaffName: 'Pasteur Samuel (Responsable Spirituel)',
         mentoringStatus: 'ASSIGNED' as MentoringStatus,
         assignedMentorName: 'Dr. Marc Dossou (Directeur R&D)',
         answers: {
@@ -672,6 +754,7 @@ export async function seedDemoData(): Promise<void> {
         first_name: 'Grace',
         last_name: 'Bakary',
         followupStatus: 'IN_PROGRESS' as FollowupStatus,
+        assignedFollowupStaffName: 'Sœur Dorcas (Équipe Suivi Spirituel)',
         mentoringStatus: 'ASSIGNED' as MentoringStatus,
         assignedMentorName: 'Mme Sophie Touré (Consultante Senior EY)',
         answers: {
@@ -710,6 +793,7 @@ export async function seedDemoData(): Promise<void> {
         lastName: p.last_name,
         answers: p.answers,
         followupStatus: p.followupStatus,
+        assignedFollowupStaffName: (p as any).assignedFollowupStaffName,
         mentoringStatus: p.mentoringStatus,
         assignedMentorName: p.assignedMentorName,
       });
@@ -734,6 +818,7 @@ export async function seedDemoData(): Promise<void> {
         first_name: 'Florence',
         last_name: 'Kouadio',
         followupStatus: 'IN_PROGRESS' as FollowupStatus,
+        assignedFollowupStaffName: 'Frère Thomas (Cellule Étudiants)',
         mentoringStatus: 'ASSIGNED' as MentoringStatus,
         assignedMentorName: 'Jean-Yves Lawson (Tech Lead FinTech)',
         answers: {
@@ -803,6 +888,7 @@ export async function seedDemoData(): Promise<void> {
         lastName: p.last_name,
         answers: p.answers,
         followupStatus: p.followupStatus,
+        assignedFollowupStaffName: (p as any).assignedFollowupStaffName,
         mentoringStatus: p.mentoringStatus,
         assignedMentorName: p.assignedMentorName,
       });
@@ -814,3 +900,150 @@ export async function seedDemoData(): Promise<void> {
     throw error;
   }
 }
+
+export const BOOTSTRAP_ADMIN_EMAIL = 'darrylavlessi@gmail.com';
+
+/**
+ * Synchronize and ensure UserProfile in Firestore
+ */
+export async function syncUserProfile(user: User): Promise<UserProfile> {
+  try {
+    const userDocRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userDocRef);
+
+    const isBootstrapAdmin =
+      user.email?.toLowerCase().trim() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
+
+    if (!userSnap.exists()) {
+      const newProfile: UserProfile = {
+        uid: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || user.email?.split('@')[0] || 'Utilisateur',
+        photoURL: user.photoURL || undefined,
+        role: isBootstrapAdmin ? 'ADMIN' : 'VIEWER',
+        status: isBootstrapAdmin ? 'APPROVED' : 'PENDING',
+        createdAt: new Date().toISOString(),
+        ...(isBootstrapAdmin
+          ? {
+              approvedAt: new Date().toISOString(),
+              approvedBy: 'SYSTEM_BOOTSTRAP',
+            }
+          : {}),
+      };
+
+      await setDoc(userDocRef, newProfile);
+      return newProfile;
+    } else {
+      const data = userSnap.data() as UserProfile;
+      // If bootstrap admin was registered with non-admin, promote automatically
+      if (isBootstrapAdmin && (data.role !== 'ADMIN' || data.status !== 'APPROVED')) {
+        const updated: UserProfile = {
+          ...data,
+          role: 'ADMIN',
+          status: 'APPROVED',
+          approvedAt: data.approvedAt || new Date().toISOString(),
+          approvedBy: 'SYSTEM_BOOTSTRAP',
+        };
+        await setDoc(userDocRef, updated, { merge: true });
+        return updated;
+      }
+      return data;
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+  }
+}
+
+/**
+ * Listen to current user's profile changes in real-time
+ */
+export function subscribeToUserProfile(
+  uid: string,
+  onSuccess: (profile: UserProfile | null) => void,
+  onError?: (err: unknown) => void
+): Unsubscribe {
+  const userDocRef = doc(db, 'users', uid);
+  return onSnapshot(
+    userDocRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        onSuccess(snapshot.data() as UserProfile);
+      } else {
+        onSuccess(null);
+      }
+    },
+    (error) => {
+      console.error('Error listening to user profile:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+
+/**
+ * Admin: Listen to all user accounts in real-time
+ */
+export function subscribeToAllUsers(
+  onSuccess: (users: UserProfile[]) => void,
+  onError?: (err: unknown) => void
+): Unsubscribe {
+  const usersCol = collection(db, 'users');
+  return onSnapshot(
+    usersCol,
+    (snapshot) => {
+      const list: UserProfile[] = [];
+      snapshot.forEach((snap) => {
+        list.push(snap.data() as UserProfile);
+      });
+      // Sort: PENDING first, then by createdAt desc
+      list.sort((a, b) => {
+        if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
+        if (a.status !== 'PENDING' && b.status === 'PENDING') return 1;
+        return (b.createdAt || '').localeCompare(a.createdAt || '');
+      });
+      onSuccess(list);
+    },
+    (error) => {
+      console.error('Error listening to users list:', error);
+      if (onError) onError(error);
+      handleFirestoreError(error, OperationType.LIST, 'users');
+    }
+  );
+}
+
+/**
+ * Admin: Update user status and role
+ */
+export async function updateUserStatusAndRole(
+  targetUid: string,
+  newStatus: UserStatus,
+  newRole: UserRole,
+  adminEmail: string
+): Promise<void> {
+  try {
+    const userDocRef = doc(db, 'users', targetUid);
+    const updates: Record<string, any> = {
+      status: newStatus,
+      role: newRole,
+    };
+    if (newStatus === 'APPROVED') {
+      updates.approvedAt = new Date().toISOString();
+      updates.approvedBy = adminEmail;
+    }
+    await updateDoc(userDocRef, updates);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${targetUid}`);
+  }
+}
+
+/**
+ * Admin: Delete a user account record from Firestore
+ */
+export async function deleteUserAccount(targetUid: string): Promise<void> {
+  try {
+    const userDocRef = doc(db, 'users', targetUid);
+    await deleteDoc(userDocRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `users/${targetUid}`);
+  }
+}
+

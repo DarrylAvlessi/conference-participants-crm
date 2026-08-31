@@ -24,6 +24,7 @@ import {
   type ParticipantWithRegistration,
   type FollowupStatus,
   type MentoringStatus,
+  type UserRole,
 } from '../types';
 import { exportParticipantsToCSV } from '../utils/csvHelpers';
 import { getParticipantAvatar, getConferenceImage } from '../utils/imageHelpers';
@@ -33,9 +34,11 @@ interface DetailPanelProps {
   event: ConferenceEvent | null;
   participantsWithReg: ParticipantWithRegistration[];
   isLoading: boolean;
+  userRole?: UserRole;
   onOpenCSVImport: () => void;
   onOpenNewParticipant: () => void;
   onOpenParticipantDrawer: (item: ParticipantWithRegistration) => void;
+  onOpenEditParticipant?: (item: ParticipantWithRegistration) => void;
   onOpenEditEvent: () => void;
   onUpdateFollowup: (registrationId: string, status: FollowupStatus) => Promise<void>;
   onUpdateMentoring: (
@@ -61,9 +64,11 @@ export function DetailPanel({
   event,
   participantsWithReg,
   isLoading,
+  userRole = 'VIEWER',
   onOpenCSVImport,
   onOpenNewParticipant,
   onOpenParticipantDrawer,
+  onOpenEditParticipant,
   onOpenEditEvent,
   onUpdateFollowup,
   onUpdateMentoring,
@@ -87,6 +92,7 @@ export function DetailPanel({
     let followupNotStarted = 0;
     let followupInProgress = 0;
     let followupCompleted = 0;
+    let followupStaffAssigned = 0;
 
     let mentoringNotRequested = 0;
     let mentoringSeeking = 0;
@@ -96,6 +102,10 @@ export function DetailPanel({
       if (registration.followupStatus === 'COMPLETED') followupCompleted++;
       else if (registration.followupStatus === 'IN_PROGRESS') followupInProgress++;
       else followupNotStarted++;
+
+      if (registration.assignedFollowupStaffName && registration.assignedFollowupStaffName.trim()) {
+        followupStaffAssigned++;
+      }
 
       if (registration.mentoringStatus === 'ASSIGNED') mentoringAssigned++;
       else if (registration.mentoringStatus === 'SEEKING') mentoringSeeking++;
@@ -107,6 +117,7 @@ export function DetailPanel({
       followupNotStarted,
       followupInProgress,
       followupCompleted,
+      followupStaffAssigned,
       mentoringNotRequested,
       mentoringSeeking,
       mentoringAssigned,
@@ -128,7 +139,7 @@ export function DetailPanel({
         return false;
       }
 
-      // Search query across name, email, mentor, and dynamic answers
+      // Search query across name, email, mentor, followup staff, and dynamic answers
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
 
@@ -137,13 +148,14 @@ export function DetailPanel({
         participant.last_name?.toLowerCase().includes(q) === true;
       const inEmail = participant.email ? participant.email.toLowerCase().includes(q) : false;
       const inMentor = (registration.assignedMentorName || '').toLowerCase().includes(q);
+      const inFollowupStaff = (registration.assignedFollowupStaffName || '').toLowerCase().includes(q);
 
       // Search inside dynamic answers
       const inAnswers = Object.values(registration.answers || {}).some((val) =>
         String(val).toLowerCase().includes(q)
       );
 
-      return inName || inEmail || inMentor || inAnswers;
+      return inName || inEmail || inMentor || inFollowupStaff || inAnswers;
     });
   }, [participantsWithReg, searchQuery, filterFollowup, filterMentoring]);
 
@@ -340,19 +352,19 @@ export function DetailPanel({
   return (
     <main
       id="conference-detail-panel"
-      className="flex-1 h-[calc(100vh-5.5rem)] overflow-y-auto space-y-6 pr-1"
+      className="flex-1 h-[calc(100dvh-8.5rem)] lg:h-[calc(100vh-5.5rem)] overflow-y-auto space-y-4 sm:space-y-6 pr-0.5 sm:pr-1"
       onClick={() => setActiveMenuId(null)}
     >
       {/* SECTION 1: Date de l'événement Card */}
       <section
         id="event-overview-card"
-        className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6"
+        className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-6"
       >
-        <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-5">
-          <div className="flex flex-col sm:flex-row items-start gap-4 flex-1">
+        <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4 sm:gap-5">
+          <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 flex-1 min-w-0">
             {/* Conference Poster Preview */}
             <div
-              className="relative group shrink-0 w-24 h-32 sm:w-28 sm:h-36 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-2xs cursor-pointer"
+              className="relative group shrink-0 w-20 h-28 xs:w-24 xs:h-32 sm:w-28 sm:h-36 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-2xs cursor-pointer"
               onClick={() => setZoomPoster(getConferenceImage(event.id, event.title, event.imageUrl))}
               title="Cliquer pour agrandir l'affiche de la conférence"
             >
@@ -367,16 +379,16 @@ export function DetailPanel({
                 <span className="text-[10px] font-semibold">Agrandir</span>
               </div>
               <div className="absolute bottom-1 left-1 right-1">
-                <span className="block text-[9px] font-bold text-center bg-slate-900/80 text-white py-0.5 rounded backdrop-blur-xs">
+                <span className="block text-[9px] font-bold text-center bg-slate-900/80 text-white py-0.5 rounded backdrop-blur-xs truncate">
                   {event.imageUrl ? 'Affiche officielle' : 'Affiche par défaut'}
                 </span>
               </div>
             </div>
 
-            <div className="space-y-2 flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="badge-neutral text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
-                  Conférence sélectionnée
+            <div className="space-y-1.5 sm:space-y-2 flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <span className="badge-neutral text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
+                  Sélectionnée
                 </span>
                 <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-900 text-white">
                   <Users className="w-3 h-3" />
@@ -389,135 +401,151 @@ export function DetailPanel({
                 )}
               </div>
 
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight break-words">
                 {event.title}
               </h1>
 
               {/* Prominent Section Header: Date de l'événement */}
-              <div className="pt-1 flex flex-wrap items-center gap-2">
-                <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-                  <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="font-medium text-slate-700 capitalize">
+              <div className="pt-0.5 flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
+                  <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span className="font-medium text-slate-700 capitalize truncate">
                     {formatDate(event.date)}
                   </span>
                 </div>
 
-                <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-                  <Clock className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="text-slate-700 font-medium font-mono text-xs">
+                <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
+                  <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span className="text-slate-700 font-medium font-mono text-xs whitespace-nowrap">
                     {event.startTime || '14:00'} - {event.endTime || '16:30'}
                   </span>
                 </div>
               </div>
 
               {event.description && (
-                <p className="text-xs text-slate-600 pt-1 leading-relaxed max-w-3xl">
+                <p className="text-xs text-slate-600 pt-1 leading-relaxed max-w-3xl line-clamp-3 sm:line-clamp-none">
                   {event.description}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            <button
-              id="edit-current-conference-btn"
-              onClick={onOpenEditEvent}
-              type="button"
-              className="btn-secondary inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold"
-              title="Modifier les informations et joindre une affiche"
-            >
-              <Pencil className="w-4 h-4 text-slate-500" />
-              <span>Modifier la conférence</span>
-            </button>
+          {/* Action buttons with responsive grid / flex layout */}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-2.5 w-full xl:w-auto shrink-0 pt-2 xl:pt-0 border-t xl:border-t-0 border-slate-100">
+            {userRole !== 'VIEWER' && (
+              <>
+                <button
+                  id="open-csv-import-btn"
+                  onClick={onOpenCSVImport}
+                  type="button"
+                  className="btn-primary col-span-2 sm:col-span-1 inline-flex items-center justify-center space-x-1.5 sm:space-x-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
+                >
+                  <UploadCloud className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                  <span className="truncate">Importer Google Forms (CSV)</span>
+                </button>
 
-            <button
-              id="open-csv-import-btn"
-              onClick={onOpenCSVImport}
-              type="button"
-              className="btn-primary inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold"
-            >
-              <UploadCloud className="w-4 h-4" />
-              <span>Importer Google Forms (CSV)</span>
-            </button>
+                <button
+                  id="edit-current-conference-btn"
+                  onClick={onOpenEditEvent}
+                  type="button"
+                  className="btn-secondary inline-flex items-center justify-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
+                  title="Modifier les informations et joindre une affiche"
+                >
+                  <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 shrink-0" />
+                  <span className="truncate">Modifier</span>
+                </button>
 
-            <button
-              id="open-new-participant-btn"
-              onClick={onOpenNewParticipant}
-              type="button"
-              className="btn-secondary inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold"
-            >
-              <UserPlus className="w-4 h-4 text-slate-500" />
-              <span>Ajouter un participant</span>
-            </button>
+                <button
+                  id="open-new-participant-btn"
+                  onClick={onOpenNewParticipant}
+                  type="button"
+                  className="btn-secondary inline-flex items-center justify-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
+                >
+                  <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 shrink-0" />
+                  <span className="truncate">Ajouter participant</span>
+                </button>
+              </>
+            )}
 
             <button
               id="export-participants-csv-btn"
               onClick={() => exportParticipantsToCSV(event.title, participantsWithReg)}
               type="button"
-              className="btn-secondary inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold"
+              className="btn-secondary inline-flex items-center justify-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
               title="Exporter la liste avec toutes les réponses dynamiques"
             >
-              <Download className="w-4 h-4 text-slate-500" />
-              <span>Exporter CSV</span>
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 shrink-0" />
+              <span className="truncate">Exporter CSV</span>
             </button>
 
-            <button
-              id="clear-conference-btn"
-              onClick={handleClearConference}
-              type="button"
-              className="btn-secondary inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-red-600 border-red-200 hover:bg-red-50"
-              title="Supprimer tous les participants et vider les données de la conférence"
-            >
-              <Trash2 className="w-4 h-4 text-red-500" />
-              <span>Vider la conférence</span>
-            </button>
+            {userRole === 'ADMIN' && (
+              <button
+                id="clear-conference-btn"
+                onClick={handleClearConference}
+                type="button"
+                className="btn-secondary col-span-2 sm:col-span-1 inline-flex items-center justify-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-semibold text-red-600 border-red-200 hover:bg-red-50 cursor-pointer"
+                title="Supprimer tous les participants et vider les données de la conférence (Admin uniquement)"
+              >
+                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500 shrink-0" />
+                <span className="truncate">Vider la conférence</span>
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Read-only notification banner for VIEWER role */}
+        {userRole === 'VIEWER' && (
+          <div className="mt-3.5 p-3 rounded-xl bg-slate-50 border border-slate-200/90 text-xs text-slate-600 flex items-center space-x-2.5">
+            <Eye className="w-4 h-4 text-slate-500 shrink-0" />
+            <span>
+              <strong className="text-slate-800">Mode Consultation (Lecteur) :</strong> Vous pouvez explorer les participants, filtrer les colonnes et exporter en CSV. Pour ajouter ou modifier des données, demandez l'élévation de votre rôle à un administrateur.
+            </span>
+          </div>
+        )}
+
         {/* KPI Summary Statistics Bar */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6 pt-5 border-t border-slate-100">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mt-4 sm:mt-6 pt-3.5 sm:pt-5 border-t border-slate-100">
           {/* Total */}
-          <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200">
-            <div className="text-xs font-semibold text-slate-500">Inscrits à la conférence</div>
-            <div className="text-xl font-bold text-slate-900 mt-1">{stats.total}</div>
+          <div className="bg-slate-50 rounded-xl p-3 sm:p-3.5 border border-slate-200">
+            <div className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">Inscrits à la conférence</div>
+            <div className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5 sm:mt-1">{stats.total}</div>
           </div>
 
           {/* Follow-up completed */}
-          <div className="bg-emerald-50/60 rounded-xl p-3.5 border border-emerald-200/70">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-emerald-800">Suivi terminé</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-700 text-white">
+          <div className="bg-emerald-50/60 rounded-xl p-3 sm:p-3.5 border border-emerald-200/70">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[11px] sm:text-xs font-semibold text-emerald-800 truncate">Suivi terminé</span>
+              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-700 text-white shrink-0">
                 {stats.total > 0
                   ? Math.round((stats.followupCompleted / stats.total) * 100)
                   : 0}
                 %
               </span>
             </div>
-            <div className="text-xl font-bold text-emerald-900 mt-1">
+            <div className="text-lg sm:text-xl font-bold text-emerald-900 mt-0.5 sm:mt-1">
               {stats.followupCompleted}{' '}
               <span className="text-xs font-medium text-emerald-700">/ {stats.total}</span>
             </div>
           </div>
 
           {/* Follow-up in progress & not started */}
-          <div className="bg-amber-50/60 rounded-xl p-3.5 border border-amber-200/70">
-            <div className="text-xs font-semibold text-amber-800">Suivis en cours / À faire</div>
-            <div className="text-xl font-bold text-amber-900 mt-1">
+          <div className="bg-amber-50/60 rounded-xl p-3 sm:p-3.5 border border-amber-200/70">
+            <div className="text-[11px] sm:text-xs font-semibold text-amber-800 truncate">Suivis en cours</div>
+            <div className="text-lg sm:text-xl font-bold text-amber-900 mt-0.5 sm:mt-1">
               {stats.followupInProgress}{' '}
-              <span className="text-xs font-medium text-amber-700">
-                en cours ({stats.followupNotStarted} en attente)
+              <span className="text-[10px] sm:text-xs font-medium text-amber-700 block sm:inline mt-0.5 sm:mt-0">
+                ({stats.followupStaffAssigned} avec chargé de suivi)
               </span>
             </div>
           </div>
 
           {/* Mentoring status */}
-          <div className="bg-sky-50/60 rounded-xl p-3.5 border border-sky-200/70">
-            <div className="text-xs font-semibold text-sky-800">Mentorat professionnel</div>
-            <div className="text-xl font-bold text-sky-900 mt-1">
+          <div className="bg-sky-50/60 rounded-xl p-3 sm:p-3.5 border border-sky-200/70">
+            <div className="text-[11px] sm:text-xs font-semibold text-sky-800 truncate">Mentorat professionnel</div>
+            <div className="text-lg sm:text-xl font-bold text-sky-900 mt-0.5 sm:mt-1">
               {stats.mentoringAssigned}{' '}
-              <span className="text-xs font-medium text-sky-700">
-                assignés ({stats.mentoringSeeking} en recherche)
+              <span className="text-[10px] sm:text-xs font-medium text-sky-700 block sm:inline mt-0.5 sm:mt-0">
+                ({stats.mentoringSeeking} en recherche)
               </span>
             </div>
           </div>
@@ -527,27 +555,27 @@ export function DetailPanel({
       {/* SECTION 2: Liste des Participants Card */}
       <section
         id="participants-list-section"
-        className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+        className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden"
       >
         {/* Section Header: Liste des Participants & Filters */}
-        <div className="p-5 border-b border-slate-200 bg-white">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="flex items-center space-x-3">
-              <h2 className="text-lg font-bold text-slate-900">Liste des Participants</h2>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-900 text-white">
+        <div className="p-3.5 sm:p-5 border-b border-slate-200 bg-white">
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center space-x-2.5 sm:space-x-3">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900">Liste des Participants</h2>
+              <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-900 text-white">
                 {filteredParticipants.length}
               </span>
             </div>
 
             {/* Filter controls */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full xl:w-auto">
               {/* Search */}
-              <div className="relative w-full sm:w-64 md:w-72">
+              <div className="relative w-full sm:w-56 md:w-64">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   id="search-participants-input"
                   type="text"
-                  placeholder="Rechercher par nom, email, école..."
+                  placeholder="Rechercher nom, email, école..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 focus:bg-white transition-all"
@@ -555,15 +583,15 @@ export function DetailPanel({
               </div>
 
               {/* Followup filter */}
-              <div className="flex items-center space-x-1.5 text-xs text-slate-600">
-                <span className="text-slate-500 font-semibold">Suivi :</span>
+              <div className="flex items-center space-x-1.5 text-xs text-slate-600 flex-1 sm:flex-initial min-w-[130px]">
+                <span className="text-slate-500 font-semibold hidden xs:inline">Suivi :</span>
                 <select
                   id="filter-followup-select"
                   value={filterFollowup}
                   onChange={(e) => setFilterFollowup(e.target.value)}
-                  className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 focus:bg-white"
+                  className="w-full sm:w-auto px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 focus:bg-white"
                 >
-                  <option value="ALL">Tous les statuts</option>
+                  <option value="ALL">Tous les statuts ({stats.total})</option>
                   <option value="NOT_STARTED">Non démarré ({stats.followupNotStarted})</option>
                   <option value="IN_PROGRESS">En cours ({stats.followupInProgress})</option>
                   <option value="COMPLETED">Terminé ({stats.followupCompleted})</option>
@@ -571,15 +599,15 @@ export function DetailPanel({
               </div>
 
               {/* Mentoring filter */}
-              <div className="flex items-center space-x-1.5 text-xs text-slate-600">
-                <span className="text-slate-500 font-semibold">Mentorat :</span>
+              <div className="flex items-center space-x-1.5 text-xs text-slate-600 flex-1 sm:flex-initial min-w-[130px]">
+                <span className="text-slate-500 font-semibold hidden xs:inline">Mentorat :</span>
                 <select
                   id="filter-mentoring-select"
                   value={filterMentoring}
                   onChange={(e) => setFilterMentoring(e.target.value)}
-                  className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 focus:bg-white"
+                  className="w-full sm:w-auto px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 focus:bg-white"
                 >
-                  <option value="ALL">Tous ({stats.total})</option>
+                  <option value="ALL">Tous les mentorats ({stats.total})</option>
                   <option value="SEEKING">En recherche ({stats.mentoringSeeking})</option>
                   <option value="ASSIGNED">Mentor attribué ({stats.mentoringAssigned})</option>
                   <option value="NOT_REQUESTED">Non demandé ({stats.mentoringNotRequested})</option>
@@ -594,7 +622,7 @@ export function DetailPanel({
                     setFilterFollowup('ALL');
                     setFilterMentoring('ALL');
                   }}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors text-xs flex items-center space-x-1"
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors text-xs flex items-center space-x-1 cursor-pointer shrink-0"
                   title="Réinitialiser les filtres"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -604,13 +632,13 @@ export function DetailPanel({
 
               {/* Per-event column picker */}
               {availableColumns.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 py-0.5 pl-3 border-l border-slate-200">
+                <div className="flex flex-wrap items-center gap-1.5 py-1 sm:py-0.5 pl-0 sm:pl-3 border-t sm:border-t-0 sm:border-l border-slate-200 w-full sm:w-auto">
                   {displayColumns.map((col) => (
                     <span
                       key={col}
-                      className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-900 text-white"
+                      className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-900 text-white shrink-0"
                     >
-                      <span className="max-w-[150px] truncate">{col}</span>
+                      <span className="max-w-[120px] sm:max-w-[150px] truncate">{col}</span>
                       <button
                         type="button"
                         onClick={() => removeDisplayColumn(col)}
@@ -628,7 +656,7 @@ export function DetailPanel({
                       onChange={(e) => {
                         if (e.target.value) addDisplayColumn(e.target.value);
                       }}
-                      className="px-2 py-1.5 text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-full text-slate-600 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 cursor-pointer"
+                      className="px-2.5 py-1 text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-full text-slate-600 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 cursor-pointer"
                       title="Ajouter une colonne du fichier importé"
                     >
                       <option value="" disabled>
@@ -649,12 +677,12 @@ export function DetailPanel({
           </div>
         </div>
 
-        {/* Clean Table with Ample Vertical Padding (py-3), Circular Avatars, Pill Badges, MoreVertical menu */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+        {/* Clean Table with Horizontal Scroll Support, Minimum Column Widths, and Mobile Ergonomics */}
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left text-xs border-collapse min-w-[620px] sm:min-w-full">
             <thead>
-              <tr className="bg-slate-50/90 text-slate-700 border-b border-slate-200 font-bold">
-                <th className="py-3.5 pl-5 pr-2 w-10">
+              <tr className="bg-slate-50/90 text-slate-700 border-b border-slate-200 font-bold whitespace-nowrap">
+                <th className="py-3 pl-4 sm:pl-5 pr-2 w-10">
                   <input
                     id="select-all-participants-checkbox"
                     type="checkbox"
@@ -663,19 +691,19 @@ export function DetailPanel({
                       filteredParticipants.every((f) => selectedIds.has(f.registration.id))
                     }
                     onChange={toggleSelectAll}
-                    className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20"
+                    className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20 cursor-pointer"
                     title="Sélectionner tous les participants affichés"
                   />
                 </th>
-                <th className="py-3.5 pr-5 font-bold text-slate-900">Participant</th>
+                <th className="py-3 pr-4 font-bold text-slate-900 min-w-[180px] sm:min-w-[210px]">Participant</th>
                 {displayColumns.map((col) => (
-                  <th key={col} className="py-3.5 px-4 font-bold text-slate-900 max-w-[200px]">
+                  <th key={col} className="py-3 px-3 font-bold text-slate-900 min-w-[120px] max-w-[200px] truncate">
                     {col}
                   </th>
                 ))}
-                <th className="py-3.5 px-4 font-bold text-slate-900">Statut Suivi</th>
-                <th className="py-3.5 px-4 font-bold text-slate-900">Statut Mentorat</th>
-                <th className="py-3.5 pl-4 pr-5 font-bold text-slate-900 text-right">Actions</th>
+                <th className="py-3 px-3 font-bold text-slate-900 min-w-[130px]">Statut Suivi</th>
+                <th className="py-3 px-3 font-bold text-slate-900 min-w-[140px]">Statut Mentorat</th>
+                <th className="py-3 pl-3 pr-4 sm:pr-5 font-bold text-slate-900 text-right min-w-[90px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -792,35 +820,59 @@ export function DetailPanel({
                         className="py-3 px-4"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="relative inline-block">
-                          <select
-                            id={`followup-select-${registration.id}`}
-                            value={registration.followupStatus}
-                            onChange={(e) =>
-                              handleFollowupStatusChange(
-                                registration.id,
-                                e.target.value as FollowupStatus
-                              )
-                            }
-                            className={`appearance-none text-xs font-semibold py-1.5 pl-3 pr-7 rounded-full transition-all cursor-pointer border focus:outline-none focus:ring-2 focus:ring-slate-900/10 ${
-                              registration.followupStatus === 'COMPLETED'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 hover:bg-emerald-100'
-                                : registration.followupStatus === 'IN_PROGRESS'
-                                ? 'bg-amber-50 text-amber-700 border-amber-200/60 hover:bg-amber-100'
-                                : 'bg-slate-100 text-slate-600 border-slate-200/60 hover:bg-slate-200'
-                            }`}
-                          >
-                            <option value="NOT_STARTED" className="bg-white text-slate-900">
-                              Non démarré
-                            </option>
-                            <option value="IN_PROGRESS" className="bg-white text-slate-900">
-                              En cours
-                            </option>
-                            <option value="COMPLETED" className="bg-white text-slate-900">
-                              Terminé
-                            </option>
-                          </select>
-                          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <div className="space-y-1">
+                          <div className="relative inline-block">
+                            <select
+                              id={`followup-select-${registration.id}`}
+                              disabled={userRole === 'VIEWER'}
+                              value={registration.followupStatus}
+                              onChange={(e) =>
+                                handleFollowupStatusChange(
+                                  registration.id,
+                                  e.target.value as FollowupStatus
+                                )
+                              }
+                              className={`appearance-none text-xs font-semibold py-1.5 pl-3 pr-7 rounded-full transition-all border focus:outline-none focus:ring-2 focus:ring-slate-900/10 ${
+                                userRole === 'VIEWER' ? 'cursor-default' : 'cursor-pointer'
+                              } ${
+                                registration.followupStatus === 'COMPLETED'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 hover:bg-emerald-100'
+                                  : registration.followupStatus === 'IN_PROGRESS'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200/60 hover:bg-amber-100'
+                                  : 'bg-slate-100 text-slate-600 border-slate-200/60 hover:bg-slate-200'
+                              }`}
+                            >
+                              <option value="NOT_STARTED" className="bg-white text-slate-900">
+                                Non démarré
+                              </option>
+                              <option value="IN_PROGRESS" className="bg-white text-slate-900">
+                                En cours
+                              </option>
+                              <option value="COMPLETED" className="bg-white text-slate-900">
+                                Terminé
+                              </option>
+                            </select>
+                            {userRole !== 'VIEWER' && (
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            )}
+                          </div>
+
+                          {/* Chargé du suivi (spirituel) display */}
+                          {registration.assignedFollowupStaffName ? (
+                            <div
+                              className="text-[11px] text-indigo-700 font-semibold flex items-center space-x-1"
+                              title={`Chargé du suivi (spirituel) : ${registration.assignedFollowupStaffName}`}
+                            >
+                              <UserCheck className="w-3 h-3 text-indigo-600 shrink-0" />
+                              <span className="truncate max-w-[150px]">
+                                {registration.assignedFollowupStaffName}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-slate-400 italic">
+                              Sans chargé de suivi
+                            </div>
+                          )}
                         </div>
                         {isUpdating && (
                           <span className="text-[10px] text-slate-500 font-semibold ml-1.5 animate-pulse">
@@ -838,6 +890,7 @@ export function DetailPanel({
                           <div className="relative inline-block">
                             <select
                               id={`mentoring-select-${registration.id}`}
+                              disabled={userRole === 'VIEWER'}
                               value={registration.mentoringStatus}
                               onChange={(e) =>
                                 handleMentoringStatusChange(
@@ -845,7 +898,9 @@ export function DetailPanel({
                                   e.target.value as MentoringStatus
                                 )
                               }
-                              className={`appearance-none text-xs font-semibold py-1.5 pl-3 pr-7 rounded-full transition-all cursor-pointer border focus:outline-none focus:ring-2 focus:ring-slate-900/10 ${
+                              className={`appearance-none text-xs font-semibold py-1.5 pl-3 pr-7 rounded-full transition-all border focus:outline-none focus:ring-2 focus:ring-slate-900/10 ${
+                                userRole === 'VIEWER' ? 'cursor-default' : 'cursor-pointer'
+                              } ${
                                 registration.mentoringStatus === 'ASSIGNED'
                                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 hover:bg-emerald-100'
                                   : registration.mentoringStatus === 'SEEKING'
@@ -863,7 +918,9 @@ export function DetailPanel({
                                 Mentor attribué
                               </option>
                             </select>
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            {userRole !== 'VIEWER' && (
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            )}
                           </div>
 
                           {/* Assigned mentor name display */}
@@ -893,6 +950,19 @@ export function DetailPanel({
                             <Eye className="w-3.5 h-3.5 text-slate-500" />
                             <span className="hidden sm:inline">Détails</span>
                           </button>
+
+                          {userRole !== 'VIEWER' && onOpenEditParticipant && (
+                            <button
+                              id={`edit-participant-btn-${registration.id}`}
+                              type="button"
+                              onClick={() => onOpenEditParticipant(item)}
+                              className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+                              title="Modifier les données du participant"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-slate-500" />
+                              <span className="hidden md:inline">Modifier</span>
+                            </button>
+                          )}
 
                           {/* Three-dots menu icon (MoreVertical) */}
                           <div className="relative">
@@ -929,32 +999,50 @@ export function DetailPanel({
                                   <span>Voir réponses Forms</span>
                                 </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveMenuId(null);
-                                    const nextStatus: FollowupStatus =
-                                      registration.followupStatus === 'NOT_STARTED'
-                                        ? 'IN_PROGRESS'
-                                        : registration.followupStatus === 'IN_PROGRESS'
-                                        ? 'COMPLETED'
-                                        : 'NOT_STARTED';
-                                    handleFollowupStatusChange(registration.id, nextStatus);
-                                  }}
-                                  className="w-full px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center space-x-2 text-left border-t border-slate-100"
-                                >
-                                  <CheckCircle2 className="w-4 h-4 text-slate-500" />
-                                  <span>Changer statut de suivi</span>
-                                </button>
+                                {userRole !== 'VIEWER' && onOpenEditParticipant && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveMenuId(null);
+                                      onOpenEditParticipant(item);
+                                    }}
+                                    className="w-full px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center space-x-2 text-left border-t border-slate-100"
+                                  >
+                                    <Pencil className="w-4 h-4 text-slate-500" />
+                                    <span>Modifier les données</span>
+                                  </button>
+                                )}
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleSingleDelete(item)}
-                                  className="w-full px-3.5 py-2 text-xs font-medium text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center space-x-2 text-left border-t border-slate-100"
-                                >
-                                  <Trash2 className="w-4 h-4 text-red-500" />
-                                  <span>Supprimer le participant</span>
-                                </button>
+                                {userRole !== 'VIEWER' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveMenuId(null);
+                                      const nextStatus: FollowupStatus =
+                                        registration.followupStatus === 'NOT_STARTED'
+                                          ? 'IN_PROGRESS'
+                                          : registration.followupStatus === 'IN_PROGRESS'
+                                          ? 'COMPLETED'
+                                          : 'NOT_STARTED';
+                                      handleFollowupStatusChange(registration.id, nextStatus);
+                                    }}
+                                    className="w-full px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center space-x-2 text-left border-t border-slate-100"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4 text-slate-500" />
+                                    <span>Changer statut de suivi</span>
+                                  </button>
+                                )}
+
+                                {userRole === 'ADMIN' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSingleDelete(item)}
+                                    className="w-full px-3.5 py-2 text-xs font-medium text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center space-x-2 text-left border-t border-slate-100"
+                                  >
+                                    <Trash2 className="w-4 h-4 text-red-500" />
+                                    <span>Supprimer le participant</span>
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>

@@ -11,6 +11,8 @@ import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { OperationType, type FirestoreErrorInfo } from '../types';
 
+export { onAuthStateChanged, type User } from 'firebase/auth';
+
 export const app = initializeApp(firebaseConfig);
 
 // CRITICAL: Connect directly to the specific Firestore database instance

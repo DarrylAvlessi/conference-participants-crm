@@ -10,26 +10,72 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isBootstrapAdmin() {
+      return isSignedIn() && request.auth.token.email == "darrylavlessi@gmail.com";
+    }
+
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == "darrylavlessi@gmail.com" ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        isBootstrapAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "ADMIN" &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == "APPROVED")
       );
     }
 
-    // Participants (auto-generated doc IDs; email is optional data, not the key)
+    function isApproved() {
+      return isSignedIn() && (
+        isBootstrapAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == "APPROVED")
+      );
+    }
+
+    function isManagerOrAdmin() {
+      return isSignedIn() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == "APPROVED" &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ["ADMIN", "MANAGER"])
+      );
+    }
+
+    // Users collection (RBAC & Approvals)
+    match /users/{userId} {
+      // Individual user can get their own user doc; Admins can get any user doc
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Only Admins can list all users (for user management & approval dashboard)
+      allow list: if isAdmin();
+      // Any authenticated user can create their initial profile for themselves
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Admins can update any user (approve, reject, change role); Users can update non-sensitive fields on their own profile
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']))
+      );
+      // Only Admins can delete a user record
+      allow delete: if isAdmin();
+    }
+
+    // Participants (auto-generated doc IDs)
     match /participants/{participantId} {
-      allow read, write: if true;
+      allow read: if isApproved();
+      allow create, update: if isManagerOrAdmin();
+      allow delete: if isAdmin();
     }
 
     // Events (Conferences)
     match /events/{eventId} {
-      allow read, write: if true;
+      allow read: if isApproved();
+      allow create, update: if isManagerOrAdmin();
+      allow delete: if isAdmin();
     }
 
     // Registrations (Pivot linking participantId and eventId with tracking & dynamic answers)
     match /registrations/{registrationId} {
-      allow read, write: if true;
+      allow read: if isApproved();
+      allow create, update: if isManagerOrAdmin();
+      allow delete: if isAdmin();
     }
 
     // Connection validation test

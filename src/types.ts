@@ -2,6 +2,22 @@ export type FollowupStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 
 export type MentoringStatus = 'NOT_REQUESTED' | 'SEEKING' | 'ASSIGNED';
 
+export type UserRole = 'ADMIN' | 'MANAGER' | 'VIEWER';
+
+export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  role: UserRole;
+  status: UserStatus;
+  createdAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+}
+
 export interface Participant {
   id: string; // Auto-generated Document ID
   email?: string;
@@ -31,6 +47,7 @@ export interface Registration {
   followupStatus: FollowupStatus;
   mentoringStatus: MentoringStatus;
   assignedMentorName?: string;
+  assignedFollowupStaffName?: string; // Chargé du suivi (spirituel)
   answers: Record<string, any>; // Stores form-specific dynamic key-value pairs
   notes?: string;
   createdAt: string;

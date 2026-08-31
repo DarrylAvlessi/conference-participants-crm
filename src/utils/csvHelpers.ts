@@ -165,6 +165,7 @@ export function exportParticipantsToCSV(
           : d.registration.followupStatus === 'IN_PROGRESS'
           ? 'En cours'
           : 'Non démarré',
+      'Chargé Suivi (Spirituel)': d.registration.assignedFollowupStaffName || '',
       'Statut Mentorat':
         d.registration.mentoringStatus === 'ASSIGNED'
           ? 'Mentor attribué'

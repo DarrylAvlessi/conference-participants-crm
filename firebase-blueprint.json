@@ -107,6 +107,11 @@
           "description": "Optional name of the mentor assigned to this participant",
           "maxLength": 150
         },
+        "assignedFollowupStaffName": {
+          "type": "string",
+          "description": "Optional name of the person responsible for spiritual follow-up",
+          "maxLength": 150
+        },
         "answers": {
           "type": "object",
           "description": "Dynamic key-value map storing form answers (school, WhatsApp, expectations, etc.)"
@@ -117,9 +122,60 @@
         }
       },
       "required": ["participantId", "eventId", "followupStatus", "mentoringStatus"]
+    },
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "User account profile with role and administrator approval status",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth user identifier"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User profile photo URL"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["ADMIN", "MANAGER", "VIEWER"],
+          "description": "Access role within the application"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "APPROVED", "REJECTED"],
+          "description": "Administrator approval status"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Registration timestamp"
+        },
+        "approvedAt": {
+          "type": "string",
+          "description": "Timestamp when account was approved"
+        },
+        "approvedBy": {
+          "type": "string",
+          "description": "Email of admin who approved the account"
+        }
+      },
+      "required": ["uid", "email", "role", "status", "createdAt"]
     }
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": "UserAccount",
+      "description": "User accounts with role-based access control and approval status"
+    },
     "/participants/{participantId}": {
       "schema": "Participant",
       "description": "Participants indexed by lowercased email ID"

@@ -9,7 +9,7 @@ import {
   Trash2,
   Pencil,
 } from 'lucide-react';
-import { type ConferenceEvent } from '../types';
+import { type ConferenceEvent, type UserRole } from '../types';
 import { getConferenceImage } from '../utils/imageHelpers';
 
 interface MasterPanelProps {
@@ -20,6 +20,7 @@ interface MasterPanelProps {
   onDeleteEvent?: (eventId: string) => void;
   onEditEvent?: (event: ConferenceEvent) => void;
   isLoading: boolean;
+  userRole?: UserRole;
 }
 
 export function MasterPanel({
@@ -30,6 +31,7 @@ export function MasterPanel({
   onDeleteEvent,
   onEditEvent,
   isLoading,
+  userRole = 'VIEWER',
 }: MasterPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -62,7 +64,7 @@ export function MasterPanel({
     <aside
       id="conferences-master-panel"
       aria-label="Liste des conférences"
-      className="w-full lg:w-96 flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[calc(100vh-5.5rem)] overflow-hidden"
+      className="w-full lg:w-96 flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[calc(100dvh-8.5rem)] lg:h-[calc(100vh-5.5rem)] overflow-hidden"
     >
       {/* Panel Header */}
       <div className="p-4 border-b border-slate-200 bg-white">
@@ -73,15 +75,17 @@ export function MasterPanel({
               {events.length}
             </span>
           </div>
-          <button
-            id="create-new-conference-btn"
-            onClick={onOpenNewEventModal}
-            type="button"
-            className="btn-primary inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Créer</span>
-          </button>
+          {userRole !== 'VIEWER' && (
+            <button
+              id="create-new-conference-btn"
+              onClick={onOpenNewEventModal}
+              type="button"
+              className="btn-primary inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Créer</span>
+            </button>
+          )}
         </div>
 
         {/* Search Input */}
@@ -217,21 +221,21 @@ export function MasterPanel({
                     )}
                   </span>
 
-                  <div className="flex items-center space-x-1">
-                    {onEditEvent && (
+                  <div className="flex items-center space-x-1 shrink-0">
+                    {userRole !== 'VIEWER' && onEditEvent && (
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onEditEvent(event);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
+                        className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
                         title="Modifier la conférence"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    {onDeleteEvent && (
+                    {userRole === 'ADMIN' && onDeleteEvent && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -244,14 +248,14 @@ export function MasterPanel({
                             onDeleteEvent(event.id);
                           }
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-                        title="Supprimer la conférence"
+                        className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                        title="Supprimer la conférence (Admin uniquement)"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                     <ChevronRight
-                      className={`w-3.5 h-3.5 transition-transform ${
+                      className={`w-3.5 h-3.5 transition-transform shrink-0 ${
                         isSelected ? 'text-slate-900 translate-x-0.5' : 'text-slate-400'
                       }`}
                     />

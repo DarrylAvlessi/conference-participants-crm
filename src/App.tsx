@@ -9,18 +9,24 @@ import {
   type ParticipantWithRegistration,
   type FollowupStatus,
   type MentoringStatus,
+  type UserProfile,
 } from './types';
 import {
   subscribeToEvents,
   subscribeToEventParticipants,
   updateFollowupStatus,
+  updateFollowupStaff,
   updateMentoringStatus,
   updateRegistrationNotes,
   deleteConferenceEvent,
   deleteParticipantRegistration,
   deleteMultipleParticipantRegistrations,
   clearConferenceData,
+  syncUserProfile,
+  subscribeToUserProfile,
+  subscribeToAllUsers,
 } from './firebase/service';
+import { auth, onAuthStateChanged, type User } from './firebase/config';
 import { Navbar } from './components/Navbar';
 import { MasterPanel } from './components/MasterPanel';
 import { DetailPanel } from './components/DetailPanel';
@@ -29,9 +35,22 @@ import { CSVImportModal } from './components/CSVImportModal';
 import { NewEventModal } from './components/NewEventModal';
 import { NewParticipantModal } from './components/NewParticipantModal';
 import { EditEventModal } from './components/EditEventModal';
+import { EditParticipantModal } from './components/EditParticipantModal';
+import { LoginScreen } from './components/LoginScreen';
+import { PendingApprovalScreen } from './components/PendingApprovalScreen';
+import { UserManagementModal } from './components/UserManagementModal';
 import { ArrowLeft, Sparkles, Calendar } from 'lucide-react';
 
 export default function App() {
+  // Authentication & RBAC states
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
+
+  // CRM Data states
   const [events, setEvents] = useState<ConferenceEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [participantsWithReg, setParticipantsWithReg] = useState<
@@ -49,12 +68,89 @@ export default function App() {
   const [isNewParticipantModalOpen, setIsNewParticipantModalOpen] = useState(false);
   const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false);
   const [eventToEdit, setEventToEdit] = useState<ConferenceEvent | null>(null);
+  const [participantToEdit, setParticipantToEdit] =
+    useState<ParticipantWithRegistration | null>(null);
+  const [isEditParticipantModalOpen, setIsEditParticipantModalOpen] = useState(false);
 
   // Mobile layout state: show list or detail
   const [mobileView, setMobileView] = useState<'master' | 'detail'>('master');
 
-  // Subscribe to conferences in real-time
+  // Listen to Firebase Auth state
   useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      setCurrentUser(firebaseUser);
+      if (!firebaseUser) {
+        setUserProfile(null);
+        setIsAuthLoading(false);
+        return;
+      }
+
+      try {
+        const profile = await syncUserProfile(firebaseUser);
+        if (profile) setUserProfile(profile);
+      } catch (err) {
+        console.error('Error syncing user profile on auth change:', err);
+      } finally {
+        setIsAuthLoading(false);
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+  // Listen to current user profile updates in real-time
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const unsubscribeProfile = subscribeToUserProfile(
+      currentUser.uid,
+      (profile) => {
+        if (profile) {
+          setUserProfile(profile);
+        }
+      },
+      (err) => {
+        console.error('Error listening to user profile:', err);
+      }
+    );
+
+    return () => unsubscribeProfile();
+  }, [currentUser]);
+
+  // Admin only: Listen to all user accounts for approval badge & management
+  useEffect(() => {
+    if (
+      !currentUser ||
+      userProfile?.role !== 'ADMIN' ||
+      userProfile?.status !== 'APPROVED'
+    ) {
+      setAllUsers([]);
+      setPendingUsersCount(0);
+      return;
+    }
+
+    const unsubscribeAllUsers = subscribeToAllUsers(
+      (users) => {
+        setAllUsers(users);
+        const pending = users.filter((u) => u.status === 'PENDING').length;
+        setPendingUsersCount(pending);
+      },
+      (err) => {
+        console.error('Error listening to all users:', err);
+      }
+    );
+
+    return () => unsubscribeAllUsers();
+  }, [currentUser, userProfile?.role, userProfile?.status]);
+
+  // Subscribe to conferences in real-time (Only when authenticated & approved)
+  useEffect(() => {
+    if (!currentUser || userProfile?.status !== 'APPROVED') {
+      setEvents([]);
+      setIsEventsLoading(false);
+      return;
+    }
+
     setIsEventsLoading(true);
     const unsubscribe = subscribeToEvents(
       (loadedEvents) => {
@@ -80,12 +176,13 @@ export default function App() {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUser, userProfile?.status]);
 
   // Subscribe to participants & registrations when selectedEventId changes
   useEffect(() => {
-    if (!selectedEventId) {
+    if (!currentUser || userProfile?.status !== 'APPROVED' || !selectedEventId) {
       setParticipantsWithReg([]);
+      setIsParticipantsLoading(false);
       return;
     }
 
@@ -110,7 +207,7 @@ export default function App() {
     );
 
     return () => unsubscribe();
-  }, [selectedEventId]);
+  }, [currentUser, userProfile?.status, selectedEventId]);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
 
@@ -143,6 +240,15 @@ export default function App() {
     await updateRegistrationNotes(registrationId, notes);
   };
 
+  const handleOpenEditParticipant = (item: ParticipantWithRegistration) => {
+    setParticipantToEdit(item);
+    setIsEditParticipantModalOpen(true);
+  };
+
+  const handleUpdateFollowupStaff = async (registrationId: string, staffName: string) => {
+    await updateFollowupStaff(registrationId, staffName);
+  };
+
   const handleDeleteEvent = async (eventId: string) => {
     await deleteConferenceEvent(eventId);
   };
@@ -162,30 +268,108 @@ export default function App() {
     }
   };
 
+  // 1. Initial Authentication Check State
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-[#F9FAFB] flex flex-col items-center justify-center p-4">
+        <div className="w-9 h-9 border-3 border-slate-200 border-t-slate-900 rounded-full animate-spin"></div>
+        <p className="mt-3 text-xs font-semibold text-slate-500">
+          Chargement de l'espace sécurisé...
+        </p>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated User -> Google Sign-in Screen
+  if (!currentUser) {
+    return <LoginScreen />;
+  }
+
+  // 3. User authenticated but waiting for Administrator Approval
+  if (!userProfile || userProfile.status !== 'APPROVED') {
+    return (
+      <PendingApprovalScreen
+        user={currentUser}
+        profile={userProfile}
+        onRefresh={async () => {
+          if (currentUser) {
+            try {
+              const p = await syncUserProfile(currentUser);
+              if (p) setUserProfile(p);
+            } catch (e) {
+              console.error('Refresh profile error:', e);
+            }
+          }
+        }}
+      />
+    );
+  }
+
+  // 4. Authenticated & Approved User -> Main Application View
   return (
     <div className="min-h-screen bg-[#F9FAFB] text-slate-900 flex flex-col font-sans">
       {/* Top Application Navbar */}
-      <Navbar />
+      <Navbar
+        currentUser={currentUser}
+        userProfile={userProfile}
+        pendingUsersCount={pendingUsersCount}
+        onOpenUserManagement={() => setIsUserManagementOpen(true)}
+      />
 
       {/* Main Master-Detail Screen */}
-      <div className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 flex flex-col lg:flex-row gap-6 overflow-hidden relative">
-        {/* Mobile View Switcher Toolbar */}
-        <div className="lg:hidden bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-xs mb-2">
-          {mobileView === 'detail' && (
-            <button
-              onClick={() => setMobileView('master')}
-              type="button"
-              className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-900 hover:text-slate-700 cursor-pointer"
+      <div className="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 lg:p-6 flex flex-col lg:flex-row gap-3 sm:gap-4 lg:gap-6 min-h-0 relative">
+        {/* Mobile View Segmented Switcher */}
+        <div className="lg:hidden bg-white border border-slate-200 rounded-xl p-1 flex items-center gap-1 shadow-xs shrink-0">
+          <button
+            type="button"
+            onClick={() => setMobileView('master')}
+            className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+              mobileView === 'master'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <span>Conférences</span>
+            <span
+              className={`px-1.5 py-0.5 text-[10px] rounded-full font-bold ${
+                mobileView === 'master'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-slate-100 text-slate-600'
+              }`}
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Retour aux conférences</span>
-            </button>
-          )}
-          <span className="text-xs font-bold text-slate-700 ml-auto">
-            {mobileView === 'master'
-              ? 'Toutes les conférences'
-              : selectedEvent?.title || 'Détails'}
-          </span>
+              {events.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (selectedEvent) setMobileView('detail');
+            }}
+            disabled={!selectedEvent}
+            className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center space-x-1.5 truncate cursor-pointer ${
+              mobileView === 'detail'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : selectedEvent
+                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                : 'text-slate-300 cursor-not-allowed opacity-50'
+            }`}
+          >
+            <span className="truncate">
+              {selectedEvent ? selectedEvent.title : 'Détails'}
+            </span>
+            {selectedEvent && (
+              <span
+                className={`px-1.5 py-0.5 text-[10px] rounded-full font-bold shrink-0 ${
+                  mobileView === 'detail'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                {participantsWithReg.length}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Master Panel (Left) */}
@@ -205,6 +389,7 @@ export default function App() {
               setIsEditEventModalOpen(true);
             }}
             isLoading={isEventsLoading}
+            userRole={userProfile.role}
           />
         </div>
 
@@ -218,9 +403,11 @@ export default function App() {
             event={selectedEvent}
             participantsWithReg={participantsWithReg}
             isLoading={isParticipantsLoading}
+            userRole={userProfile.role}
             onOpenCSVImport={() => setIsCSVModalOpen(true)}
             onOpenNewParticipant={() => setIsNewParticipantModalOpen(true)}
             onOpenParticipantDrawer={handleOpenParticipantDrawer}
+            onOpenEditParticipant={handleOpenEditParticipant}
             onOpenEditEvent={() => {
               if (selectedEvent) {
                 setEventToEdit(selectedEvent);
@@ -239,10 +426,26 @@ export default function App() {
       <ParticipantDrawer
         participantWithReg={selectedParticipantItem}
         isOpen={isDrawerOpen}
+        userRole={userProfile.role}
         onClose={() => setIsDrawerOpen(false)}
         onUpdateFollowup={handleUpdateFollowup}
+        onUpdateFollowupStaff={handleUpdateFollowupStaff}
         onUpdateMentoring={handleUpdateMentoring}
         onUpdateNotes={handleUpdateNotes}
+        onOpenEditParticipant={handleOpenEditParticipant}
+      />
+
+      {/* Edit Participant Data Modal */}
+      <EditParticipantModal
+        participantWithReg={participantToEdit}
+        isOpen={isEditParticipantModalOpen}
+        onClose={() => {
+          setIsEditParticipantModalOpen(false);
+          setParticipantToEdit(null);
+        }}
+        onParticipantUpdated={() => {
+          // Participant updates sync automatically via Firestore onSnapshot
+        }}
       />
 
       {/* Edit Conference Modal */}
@@ -292,6 +495,17 @@ export default function App() {
           onParticipantAdded={() => {
             // Participant list auto-updates via Firestore onSnapshot
           }}
+        />
+      )}
+
+      {/* User Management & Approvals Modal (Admin only) */}
+      {userProfile.role === 'ADMIN' && (
+        <UserManagementModal
+          isOpen={isUserManagementOpen}
+          onClose={() => setIsUserManagementOpen(false)}
+          users={allUsers}
+          currentAdminEmail={userProfile.email}
+          currentAdminUid={userProfile.uid}
         />
       )}
     </div>
