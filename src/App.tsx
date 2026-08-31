@@ -499,7 +499,7 @@ export default function App() {
       )}
 
       {/* User Management & Approvals Modal (Admin only) */}
-      {userProfile.role === 'ADMIN' && (
+      {userProfile.role === 'ADMIN' && isUserManagementOpen && (
         <UserManagementModal
           isOpen={isUserManagementOpen}
           onClose={() => setIsUserManagementOpen(false)}

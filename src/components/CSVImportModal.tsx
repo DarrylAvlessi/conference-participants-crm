@@ -6,11 +6,10 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   ArrowLeft,
-  Sparkles,
   Database,
   RefreshCw,
 } from 'lucide-react';
-import { SAMPLE_GOOGLE_FORMS_CSV, xlsxToRows } from '../utils/csvHelpers';
+import { xlsxToRows } from '../utils/csvHelpers';
 import { batchImportCSVRows, type ImportResult } from '../firebase/service';
 
 interface CSVImportModalProps {
@@ -126,24 +125,6 @@ export function CSVImportModal({
     processFile(file);
   };
 
-  const handleLoadSampleCSV = async () => {
-    const name = 'reponses_google_forms_demo.csv';
-    try {
-      Papa.parse(SAMPLE_GOOGLE_FORMS_CSV, {
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: (h) => h.trim(),
-        complete: (results) => {
-          const fields = results.meta.fields || [];
-          switchToPreview(fields, results.data as Record<string, any>[], name);
-        },
-      });
-    } catch (err: any) {
-      console.error('Sample CSV parse error:', err);
-      alert('Erreur lors de la lecture du fichier CSV: ' + (err?.message || err));
-    }
-  };
-
   // Dynamic answers that will be captured
   const unmappedColumns = rawHeaders.filter(
     (h) => h !== emailField && h !== firstNameField && h !== lastNameField
@@ -247,22 +228,6 @@ export function CSVImportModal({
                 <p className="text-xs text-slate-500 mt-1">
                   ou cliquez pour parcourir vos fichiers (.csv, .xlsx ou export Google Sheets)
                 </p>
-              </div>
-
-              {/* Sample Google Forms template quick button */}
-              <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2">
-                <span className="text-xs text-slate-500">
-                  Vous n'avez pas de fichier sous la main ?
-                </span>
-                <button
-                  id="use-sample-csv-btn"
-                  type="button"
-                  onClick={handleLoadSampleCSV}
-                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors shadow-xs cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Tester avec un export Google Forms exemple</span>
-                </button>
               </div>
             </div>
           )}

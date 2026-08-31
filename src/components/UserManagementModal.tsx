@@ -38,17 +38,6 @@ export function UserManagementModal({
     text: string;
   } | null>(null);
 
-  if (!isOpen) return null;
-
-  const showFeedback = (type: 'success' | 'error', text: string) => {
-    setFeedbackMessage({ type, text });
-    setTimeout(() => setFeedbackMessage(null), 3500);
-  };
-
-  const pendingCount = users.filter((u) => u.status === 'PENDING').length;
-  const approvedCount = users.filter((u) => u.status === 'APPROVED').length;
-  const rejectedCount = users.filter((u) => u.status === 'REJECTED').length;
-
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
       // Tab filter
@@ -66,6 +55,17 @@ export function UserManagementModal({
       );
     });
   }, [users, filterTab, searchQuery]);
+
+  if (!isOpen) return null;
+
+  const showFeedback = (type: 'success' | 'error', text: string) => {
+    setFeedbackMessage({ type, text });
+    setTimeout(() => setFeedbackMessage(null), 3500);
+  };
+
+  const pendingCount = users.filter((u) => u.status === 'PENDING').length;
+  const approvedCount = users.filter((u) => u.status === 'APPROVED').length;
+  const rejectedCount = users.filter((u) => u.status === 'REJECTED').length;
 
   const handleApprove = async (targetUid: string, role: UserRole) => {
     setIsUpdating(targetUid);

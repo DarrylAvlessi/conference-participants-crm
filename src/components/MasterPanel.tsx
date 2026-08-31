@@ -116,7 +116,7 @@ export function MasterPanel({
             <p className="text-xs text-slate-500 mt-1 mb-4">
               {searchQuery
                 ? 'Aucune conférence ne correspond à votre recherche.'
-                : 'Créez votre première conférence ou chargez les données de démo.'}
+                : 'Créez votre première conférence pour commencer.'}
             </p>
               <button
                 onClick={onOpenNewEventModal}

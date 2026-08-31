@@ -1,23 +1,14 @@
 import { useState, useEffect } from 'react';
 import {
   Calendar,
-  Sparkles,
-  Database,
-  LogIn,
   LogOut,
-  User as UserIcon,
-  RefreshCw,
-  FileSpreadsheet,
   Shield,
   UserCheck,
   Eye,
-  ShieldAlert,
 } from 'lucide-react';
-import { auth, loginWithGoogle, logout, testConnection } from '../firebase/config';
-import { seedDemoData } from '../firebase/service';
+import { logout, testConnection } from '../firebase/config';
 import type { User } from 'firebase/auth';
 import type { UserProfile } from '../types';
-import { SAMPLE_GOOGLE_FORMS_CSV } from '../utils/csvHelpers';
 
 interface NavbarProps {
   currentUser: User | null;
@@ -32,10 +23,8 @@ export function Navbar({
   userProfile,
   pendingUsersCount = 0,
   onOpenUserManagement,
-  onRefreshNeeded,
 }: NavbarProps) {
-  const [isSeeding, setIsSeeding] = useState(false);
-  const [isDbOnline, setIsDbOnline] = useState<boolean | null>(null);
+  const [, setIsDbOnline] = useState<boolean | null>(null);
 
   useEffect(() => {
     // Test Firestore connection on boot
@@ -50,39 +39,6 @@ export function Navbar({
     } catch (err) {
       console.error('Logout error:', err);
     }
-  };
-
-  const handleSeedDemo = async () => {
-    if (isSeeding) return;
-    const confirm = window.confirm(
-      'Voulez-vous charger des conférences et des participants de démonstration avec des réponses Google Forms variées ?'
-    );
-    if (!confirm) return;
-
-    setIsSeeding(true);
-    try {
-      await seedDemoData();
-      if (onRefreshNeeded) onRefreshNeeded();
-      alert('Données de démonstration chargées avec succès dans Firestore !');
-    } catch (err: any) {
-      console.error('Seed error:', err);
-      alert('Erreur lors du chargement des données de démo: ' + (err?.message || err));
-    } finally {
-      setIsSeeding(false);
-    }
-  };
-
-  const handleDownloadSampleCSV = () => {
-    const blob = new Blob(['\ufeff' + SAMPLE_GOOGLE_FORMS_CSV], {
-      type: 'text/csv;charset=utf-8;',
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'exemple_reponses_google_forms_conference.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   return (
@@ -114,37 +70,6 @@ export function Navbar({
 
           {/* Actions & User State */}
           <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
-            {/* Download sample CSV button */}
-            <button
-              id="download-sample-csv-btn"
-              onClick={handleDownloadSampleCSV}
-              type="button"
-              className="inline-flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-xs cursor-pointer"
-              title="Télécharger un modèle CSV Google Forms prêt à tester"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
-              <span className="hidden sm:inline">Exemple CSV</span>
-            </button>
-
-            {/* Seed demo data button (Only for Admin or Manager) */}
-            {userProfile && userProfile.role !== 'VIEWER' && (
-              <button
-                id="seed-demo-data-btn"
-                onClick={handleSeedDemo}
-                disabled={isSeeding}
-                type="button"
-                className="btn-secondary inline-flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold cursor-pointer"
-                title="Injecter des conférences et participants de test"
-              >
-                {isSeeding ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-600" />
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5 text-slate-600" />
-                )}
-                <span>{isSeeding ? '...' : 'Démo'}</span>
-              </button>
-            )}
-
             {/* Admin: User Access Management Button */}
             {userProfile?.role === 'ADMIN' && onOpenUserManagement && (
               <button
