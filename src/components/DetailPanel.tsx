@@ -9,6 +9,8 @@ import {
   Download,
   ChevronDown,
   UserCheck,
+  GraduationCap,
+  Table as TableIcon,
   Eye,
   RotateCcw,
   MoreVertical,
@@ -28,7 +30,12 @@ import {
 } from '../types';
 import { exportParticipantsToCSV } from '../utils/csvHelpers';
 import { getParticipantAvatar, getConferenceImage } from '../utils/imageHelpers';
-import { getParticipantDisplayName, getParticipantInitial } from '../utils/participantLabel';
+import {
+  getParticipantDisplayName,
+  getParticipantInitial,
+  getParticipantSubtitle,
+} from '../utils/participantLabel';
+import { StaffGroupingView } from './StaffGroupingView';
 
 interface DetailPanelProps {
   event: ConferenceEvent | null;
@@ -85,6 +92,7 @@ export function DetailPanel({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isConfirming, setIsConfirming] = useState(false);
   const [displayColumns, setDisplayColumns] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'TABLE' | 'STAFF' | 'MENTOR'>('TABLE');
 
   // Statistics calculation for the current conference
   const stats = useMemo(() => {
@@ -139,14 +147,13 @@ export function DetailPanel({
         return false;
       }
 
-      // Search query across name, email, mentor, followup staff, and dynamic answers
+      // Search query across name, dynamic answers, mentor, and followup staff
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
 
       const inName =
-        participant.first_name?.toLowerCase().includes(q) === true ||
-        participant.last_name?.toLowerCase().includes(q) === true;
-      const inEmail = participant.email ? participant.email.toLowerCase().includes(q) : false;
+        (participant.first_name || '').toLowerCase().includes(q) ||
+        (participant.last_name || '').toLowerCase().includes(q);
       const inMentor = (registration.assignedMentorName || '').toLowerCase().includes(q);
       const inFollowupStaff = (registration.assignedFollowupStaffName || '').toLowerCase().includes(q);
 
@@ -155,7 +162,7 @@ export function DetailPanel({
         String(val).toLowerCase().includes(q)
       );
 
-      return inName || inEmail || inMentor || inFollowupStaff || inAnswers;
+      return inName || inMentor || inFollowupStaff || inAnswers;
     });
   }, [participantsWithReg, searchQuery, filterFollowup, filterMentoring]);
 
@@ -506,13 +513,28 @@ export function DetailPanel({
         {/* KPI Summary Statistics Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mt-4 sm:mt-6 pt-3.5 sm:pt-5 border-t border-slate-100">
           {/* Total */}
-          <div className="bg-slate-50 rounded-xl p-3 sm:p-3.5 border border-slate-200">
+          <div
+            onClick={() => {
+              setViewMode('TABLE');
+              setFilterFollowup('ALL');
+              setFilterMentoring('ALL');
+            }}
+            className="bg-slate-50 hover:bg-slate-100/80 transition-colors rounded-xl p-3 sm:p-3.5 border border-slate-200 cursor-pointer"
+            title="Afficher tous les participants"
+          >
             <div className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">Inscrits à la conférence</div>
             <div className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5 sm:mt-1">{stats.total}</div>
           </div>
 
           {/* Follow-up completed */}
-          <div className="bg-emerald-50/60 rounded-xl p-3 sm:p-3.5 border border-emerald-200/70">
+          <div
+            onClick={() => {
+              setViewMode('TABLE');
+              setFilterFollowup('COMPLETED');
+            }}
+            className="bg-emerald-50/60 hover:bg-emerald-50 transition-colors rounded-xl p-3 sm:p-3.5 border border-emerald-200/70 cursor-pointer"
+            title="Filtrer les suivis terminés"
+          >
             <div className="flex items-center justify-between gap-1">
               <span className="text-[11px] sm:text-xs font-semibold text-emerald-800 truncate">Suivi terminé</span>
               <span className="inline-flex items-center px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-700 text-white shrink-0">
@@ -529,23 +551,49 @@ export function DetailPanel({
           </div>
 
           {/* Follow-up in progress & not started */}
-          <div className="bg-amber-50/60 rounded-xl p-3 sm:p-3.5 border border-amber-200/70">
-            <div className="text-[11px] sm:text-xs font-semibold text-amber-800 truncate">Suivis en cours</div>
+          <div
+            onClick={() => setViewMode('STAFF')}
+            className={`transition-colors rounded-xl p-3 sm:p-3.5 border cursor-pointer ${
+              viewMode === 'STAFF'
+                ? 'bg-amber-100/60 border-amber-400 ring-2 ring-amber-400/20'
+                : 'bg-amber-50/60 hover:bg-amber-50 border-amber-200/70'
+            }`}
+            title="Voir la répartition par Chargé de suivi"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] sm:text-xs font-semibold text-amber-800 truncate">Par Chargé de suivi</span>
+              <span className="text-[10px] font-bold text-amber-900 bg-amber-200/80 px-1.5 py-0.5 rounded-md">
+                Vue groupée
+              </span>
+            </div>
             <div className="text-lg sm:text-xl font-bold text-amber-900 mt-0.5 sm:mt-1">
-              {stats.followupInProgress}{' '}
+              {stats.followupStaffAssigned}{' '}
               <span className="text-[10px] sm:text-xs font-medium text-amber-700 block sm:inline mt-0.5 sm:mt-0">
-                ({stats.followupStaffAssigned} avec chargé de suivi)
+                assigné(s) sur {stats.total}
               </span>
             </div>
           </div>
 
           {/* Mentoring status */}
-          <div className="bg-sky-50/60 rounded-xl p-3 sm:p-3.5 border border-sky-200/70">
-            <div className="text-[11px] sm:text-xs font-semibold text-sky-800 truncate">Mentorat professionnel</div>
+          <div
+            onClick={() => setViewMode('MENTOR')}
+            className={`transition-colors rounded-xl p-3 sm:p-3.5 border cursor-pointer ${
+              viewMode === 'MENTOR'
+                ? 'bg-sky-100/60 border-sky-400 ring-2 ring-sky-400/20'
+                : 'bg-sky-50/60 hover:bg-sky-50 border-sky-200/70'
+            }`}
+            title="Voir la répartition par Mentor"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] sm:text-xs font-semibold text-sky-800 truncate">Par Mentor</span>
+              <span className="text-[10px] font-bold text-sky-900 bg-sky-200/80 px-1.5 py-0.5 rounded-md">
+                Vue groupée
+              </span>
+            </div>
             <div className="text-lg sm:text-xl font-bold text-sky-900 mt-0.5 sm:mt-1">
               {stats.mentoringAssigned}{' '}
               <span className="text-[10px] sm:text-xs font-medium text-sky-700 block sm:inline mt-0.5 sm:mt-0">
-                ({stats.mentoringSeeking} en recherche)
+                mentoré(s) ({stats.mentoringSeeking} en attente)
               </span>
             </div>
           </div>
@@ -560,11 +608,58 @@ export function DetailPanel({
         {/* Section Header: Liste des Participants & Filters */}
         <div className="p-3.5 sm:p-5 border-b border-slate-200 bg-white">
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 sm:gap-4">
-            <div className="flex items-center space-x-2.5 sm:space-x-3">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900">Liste des Participants</h2>
-              <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-900 text-white">
-                {filteredParticipants.length}
-              </span>
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-4">
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900">Participants</h2>
+                <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-900 text-white">
+                  {filteredParticipants.length}
+                </span>
+              </div>
+
+              {/* View Mode Segmented Switch */}
+              <div className="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('TABLE')}
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                    viewMode === 'TABLE'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Vue liste en tableau"
+                >
+                  <TableIcon className="w-3.5 h-3.5" />
+                  <span>Tableau</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setViewMode('STAFF')}
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                    viewMode === 'STAFF'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Vue groupée par chargé de suivi"
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span>Par Chargé de suivi</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setViewMode('MENTOR')}
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                    viewMode === 'MENTOR'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Vue groupée par mentor"
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>Par Mentor</span>
+                </button>
+              </div>
             </div>
 
             {/* Filter controls */}
@@ -575,7 +670,7 @@ export function DetailPanel({
                 <input
                   id="search-participants-input"
                   type="text"
-                  placeholder="Rechercher nom, email, école..."
+                  placeholder="Rechercher un participant (nom, contact, école...)"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 focus:bg-white transition-all"
@@ -677,8 +772,22 @@ export function DetailPanel({
           </div>
         </div>
 
-        {/* Clean Table with Horizontal Scroll Support, Minimum Column Widths, and Mobile Ergonomics */}
-        <div className="overflow-x-auto w-full">
+        {/* View Mode Switching: Flat Table vs Grouped by Staff / Mentor */}
+        {viewMode !== 'TABLE' ? (
+          <StaffGroupingView
+            participantsWithReg={participantsWithReg}
+            groupBy={viewMode === 'STAFF' ? 'FOLLOWUP_STAFF' : 'MENTOR'}
+            userRole={userRole}
+            searchQuery={searchQuery}
+            onOpenParticipantDrawer={onOpenParticipantDrawer}
+            onOpenEditParticipant={onOpenEditParticipant}
+            onUpdateFollowup={onUpdateFollowup}
+            onUpdateMentoring={onUpdateMentoring}
+          />
+        ) : (
+          <>
+            {/* Clean Table with Horizontal Scroll Support, Minimum Column Widths, and Mobile Ergonomics */}
+            <div className="overflow-x-auto w-full">
           <table className="w-full text-left text-xs border-collapse min-w-[620px] sm:min-w-full">
             <thead>
               <tr className="bg-slate-50/90 text-slate-700 border-b border-slate-200 font-bold whitespace-nowrap">
@@ -744,9 +853,9 @@ export function DetailPanel({
                 filteredParticipants.map((item) => {
                   const { participant, registration } = item;
                   const isUpdating = updatingId === registration.id;
-                  const avatarUrl = getParticipantAvatar(participant.email);
+                  const avatarUrl = getParticipantAvatar(participant.id || participant.first_name);
                   const displayName = getParticipantDisplayName(item);
-                  const displayEmail = participant.email || getWhatsApp(registration.answers) || '';
+                  const subtitle = getParticipantSubtitle(item);
 
                   return (
                     <tr
@@ -787,11 +896,11 @@ export function DetailPanel({
                             <div className="font-semibold text-slate-900 truncate">
                               {displayName}
                             </div>
-                            <div className="text-[11px] font-mono text-slate-500 truncate max-w-[220px]">
-                              {displayEmail || (
-                                <span className="font-sans italic text-slate-400">Email non renseigné</span>
-                              )}
-                            </div>
+                            {subtitle && (
+                              <div className="text-[11px] font-mono text-slate-500 truncate max-w-[220px]">
+                                {subtitle}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -1095,6 +1204,8 @@ export function DetailPanel({
             Cliquer sur une ligne pour ouvrir le volet latéral avec toutes les réponses
           </span>
         </div>
+          </>
+        )}
       </section>
 
       {/* Lightbox modal for Conference Poster */}

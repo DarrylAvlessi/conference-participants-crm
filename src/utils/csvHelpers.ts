@@ -3,14 +3,12 @@ import * as XLSX from 'xlsx';
 import { type ParticipantWithRegistration } from '../types';
 
 /**
- * Auto-detect columns for email, first_name, last_name from headers
+ * Auto-detect columns for first_name and last_name from headers if present
  */
 export function autoDetectColumns(headers: string[]): {
-  emailField: string;
   firstNameField: string;
   lastNameField: string;
 } {
-  let emailField = '';
   let firstNameField = '';
   let lastNameField = '';
 
@@ -24,11 +22,6 @@ export function autoDetectColumns(headers: string[]): {
   for (const h of headers) {
     const ch = clean(h);
 
-    // Email detection
-    if (!emailField && (ch.includes('email') || ch.includes('e-mail') || ch.includes('courriel') || ch === 'mail')) {
-      emailField = h;
-    }
-
     // First name detection
     if (!firstNameField && (ch.includes('prenom') || ch.includes('first name') || ch === 'first_name')) {
       firstNameField = h;
@@ -41,23 +34,18 @@ export function autoDetectColumns(headers: string[]): {
   }
 
   // Fallbacks if not matched
-  if (!emailField) {
-    const found = headers.find((h) => clean(h).includes('mail'));
-    if (found) emailField = found;
-  }
   if (!firstNameField) {
-    const found = headers.find((h) => clean(h).includes('name') || clean(h).includes('nom'));
+    const found = headers.find((h) => clean(h).includes('prenom'));
     if (found) firstNameField = found;
   }
-  if (!lastNameField && firstNameField) {
-    const found = headers.find((h) => h !== firstNameField && (clean(h).includes('nom') || clean(h).includes('name')));
+  if (!lastNameField) {
+    const found = headers.find((h) => h !== firstNameField && (clean(h).includes('nom de famille') || clean(h).includes('last name')));
     if (found) lastNameField = found;
   }
 
   return {
-    emailField: emailField || headers[0] || '',
-    firstNameField: firstNameField || headers[1] || '',
-    lastNameField: lastNameField || (headers.length > 2 ? headers[2] : ''),
+    firstNameField: firstNameField || '',
+    lastNameField: lastNameField || '',
   };
 }
 
@@ -124,16 +112,6 @@ export async function xlsxToRows(
 }
 
 /**
- * Sample Google Forms CSV content with dynamic French/African conference fields
- */
-export const SAMPLE_GOOGLE_FORMS_CSV = `Adresse e-mail,Prénom,Nom,Numéro WhatsApp,Université / École,Filière d'études,Niveau d'études,Vos attentes principales,Comment avez-vous connu la conférence ?
-sylvie.agbessi@gmail.com,Sylvie,Agbessi,+229 97 12 34 56,Université d'Abomey-Calavi (UAC),Agronomie & Agro-industrie,Master 1,Découvrir les opportunités de bourses d'excellence et de thèses en Europe,Groupe WhatsApp Étudiants
-kevin.nzi@outlook.com,Kévin,N'Zi,+225 07 45 67 89 01,INP-HB Yamoussoukro,Génie Civil & Hydraulique,Ingénieur 2ème année,Avoir un mentor travaillant dans un grand bureau d'études international,LinkedIn
-fatou.sow@yahoo.fr,Fatou,Sow,+221 77 123 45 67,Université Cheikh Anta Diop (UCAD),Sciences Juridiques & Droit des Affaires,Master 2,Conseils pour préparer le barreau et réussir son insertion en cabinet,Affiche universitaire
-arnaud.hountondji@gmail.com,Arnaud,Hountondji,+229 95 88 77 66,ESGIS Cotonou,Informatique Réseaux & Télécoms,Licence 3,Trouver un stage de perfectionnement et clarifier mon plan de carrière,Recommandation d'un ami
-aicha.ouattara@gmail.com,Aïcha,Ouattara,+225 01 22 33 44 55,Université Félix Houphouët-Boigny,Biochimie Médicale,Doctorat 1ère année,Structurer mes démarches de publication scientifique et gestion du stress,Réseaux sociaux`;
-
-/**
  * Export conference participants to CSV including all dynamic answers
  */
 export function exportParticipantsToCSV(
@@ -158,7 +136,6 @@ export function exportParticipantsToCSV(
     const row: Record<string, any> = {
       'Prénom': d.participant.first_name || '',
       'Nom': d.participant.last_name || '',
-      'Email': d.participant.email || '',
       'Statut Suivi':
         d.registration.followupStatus === 'COMPLETED'
           ? 'Terminé'

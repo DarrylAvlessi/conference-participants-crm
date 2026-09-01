@@ -55,7 +55,37 @@ export function getParticipantDisplayName(item: ParticipantWithRegistration): st
 }
 
 /**
- * Initial used for the avatar circle when the participant has no email avatar.
+ * Subtitle for participant in lists (phone/whatsapp/school if available)
+ */
+export function getParticipantSubtitle(item: ParticipantWithRegistration): string {
+  const { registration } = item;
+  const answers = registration.answers || {};
+  const entries = Object.entries(answers).filter(([, v]) => {
+    const s = String(v ?? '').trim();
+    return s !== '' && s !== 'null' && s !== 'undefined';
+  });
+
+  const lower = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  for (const [k, v] of entries) {
+    const lk = lower(k);
+    if (/whatsapp|telephone|tel|phone|mobile/.test(lk)) {
+      return String(v).trim();
+    }
+  }
+
+  for (const [k, v] of entries) {
+    const lk = lower(k);
+    if (/universite|ecole|faculte|etablissement|institution/.test(lk)) {
+      return String(v).trim();
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Initial used for the avatar circle.
  */
 export function getParticipantInitial(item: ParticipantWithRegistration): string {
   const name = getParticipantDisplayName(item);

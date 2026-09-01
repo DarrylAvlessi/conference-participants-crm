@@ -458,14 +458,14 @@ export async function updateRegistrationNotes(
 }
 
 /**
- * Update both participant details (name, email) and registration details (answers, follow-up, mentoring, notes)
+ * Update both participant details (name) and registration details (answers, follow-up, mentoring, notes)
  */
 export async function updateParticipantAndRegistration(params: {
   participantId: string;
   registrationId: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   assignedFollowupStaffName?: string;
   assignedMentorName?: string;
   followupStatus?: FollowupStatus;
@@ -478,12 +478,15 @@ export async function updateParticipantAndRegistration(params: {
 
     // 1. Update participant document
     const participantRef = doc(db, 'participants', params.participantId);
-    batch.update(participantRef, {
+    const participantUpdates: Record<string, any> = {
       first_name: params.firstName.trim(),
       last_name: params.lastName.trim(),
-      email: params.email.trim().toLowerCase(),
       updatedAt: new Date().toISOString(),
-    });
+    };
+    if (params.email !== undefined) {
+      participantUpdates.email = params.email.trim().toLowerCase();
+    }
+    batch.update(participantRef, participantUpdates);
 
     // 2. Update registration document
     const regRef = doc(db, 'registrations', params.registrationId);
@@ -600,13 +603,11 @@ export async function batchImportCSVRows(
 
     const firstName = (row[mapping.firstNameField || '']?.toString() || '').trim();
     const lastName = (row[mapping.lastNameField || '']?.toString() || '').trim();
-    const rawEmail = (row[mapping.emailField || '']?.toString() || '').trim().toLowerCase();
 
     // Extract dynamic answers for all columns except the mapped ones
     const dynamicAnswers: Record<string, any> = {};
     for (const [key, val] of Object.entries(row)) {
       if (
-        key !== mapping.emailField &&
         key !== mapping.firstNameField &&
         key !== mapping.lastNameField &&
         val !== undefined &&
@@ -618,7 +619,7 @@ export async function batchImportCSVRows(
     }
 
     // Skip fully-empty rows (no identity and no dynamic answers)
-    if (!firstName && !lastName && !rawEmail && Object.keys(dynamicAnswers).length === 0) {
+    if (!firstName && !lastName && Object.keys(dynamicAnswers).length === 0) {
       result.skippedEmptyRows++;
       if (onProgress) onProgress(i + 1, rows.length);
       continue;
@@ -627,7 +628,6 @@ export async function batchImportCSVRows(
     try {
       // 1. Create a fresh participant document
       const participantRef = await addDoc(collection(db, 'participants'), {
-        email: rawEmail,
         first_name: firstName,
         last_name: lastName,
         createdAt: new Date().toISOString(),
@@ -646,8 +646,9 @@ export async function batchImportCSVRows(
       result.newRegistrations++;
       totalNewRegistrations++;
     } catch (err: any) {
-      console.error(`Error importing row for ${firstName} ${lastName}:`, err);
-      result.errors.push(`${firstName} ${lastName} (${rawEmail || 'sans email'}): ${err?.message || 'Erreur inconnue'}`);
+      const label = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : `Ligne ${i + 1}`;
+      console.error(`Error importing row for ${label}:`, err);
+      result.errors.push(`${label}: ${err?.message || 'Erreur inconnue'}`);
     }
 
     if (onProgress) {

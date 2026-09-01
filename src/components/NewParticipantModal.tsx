@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { X, UserPlus, Mail, Phone, School } from 'lucide-react';
+import { X, UserPlus, Phone, School } from 'lucide-react';
 import { registerParticipantDirectly } from '../firebase/service';
 import { type FollowupStatus, type MentoringStatus } from '../types';
 
@@ -20,7 +20,6 @@ export function NewParticipantModal({
 }: NewParticipantModalProps) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
   const [whatsApp, setWhatsApp] = useState('');
   const [school, setSchool] = useState('');
   const [expectations, setExpectations] = useState('');
@@ -34,8 +33,8 @@ export function NewParticipantModal({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email.trim() && !firstName.trim() && !lastName.trim()) {
-      alert('Veuillez renseigner au moins un champ d’identité (nom, prénom ou email).');
+    if (!firstName.trim() && !lastName.trim() && !whatsApp.trim() && !school.trim()) {
+      alert('Veuillez renseigner au moins une information (nom, prénom, WhatsApp ou école).');
       return;
     }
 
@@ -48,7 +47,6 @@ export function NewParticipantModal({
 
       await registerParticipantDirectly({
         eventId,
-        email: email.trim(),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         answers,
@@ -128,19 +126,6 @@ export function NewParticipantModal({
                 className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Adresse e-mail (facultatif)
-            </label>
-            <input
-              type="email"
-              placeholder="koffi.mensah@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 font-mono"
-            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

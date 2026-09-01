@@ -36,7 +36,6 @@ export function CSVImportModal({
   const [isDragging, setIsDragging] = useState(false);
 
   // Column mapping
-  const [emailField, setEmailField] = useState('');
   const [firstNameField, setFirstNameField] = useState('');
   const [lastNameField, setLastNameField] = useState('');
 
@@ -54,7 +53,6 @@ export function CSVImportModal({
     setRawHeaders([]);
     setParsedRows([]);
     setFileName('');
-    setEmailField('');
     setFirstNameField('');
     setLastNameField('');
     setProgress({ current: 0, total: 0 });
@@ -69,7 +67,6 @@ export function CSVImportModal({
     setRawHeaders(headers);
     setParsedRows(rows);
     setFileName(name);
-    setEmailField('');
     setFirstNameField('');
     setLastNameField('');
 
@@ -127,7 +124,7 @@ export function CSVImportModal({
 
   // Dynamic answers that will be captured
   const unmappedColumns = rawHeaders.filter(
-    (h) => h !== emailField && h !== firstNameField && h !== lastNameField
+    (h) => h !== firstNameField && h !== lastNameField
   );
 
   const handleExecuteImport = async () => {
@@ -139,7 +136,7 @@ export function CSVImportModal({
       const res = await batchImportCSVRows(
         eventId,
         parsedRows,
-        { emailField, firstNameField, lastNameField },
+        { firstNameField, lastNameField },
         (current, total) => {
           setProgress({ current, total });
         }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   X,
-  Mail,
+  Phone,
   Calendar,
   UserCheck,
   CheckCircle2,
@@ -18,7 +18,11 @@ import {
   type UserRole,
 } from '../types';
 import { getParticipantAvatar } from '../utils/imageHelpers';
-import { getParticipantDisplayName, getParticipantInitial } from '../utils/participantLabel';
+import {
+  getParticipantDisplayName,
+  getParticipantInitial,
+  getParticipantSubtitle,
+} from '../utils/participantLabel';
 
 interface ParticipantDrawerProps {
   participantWithReg: ParticipantWithRegistration | null;
@@ -152,30 +156,30 @@ export function ParticipantDrawer({
                   Participant
                 </span>
               </div>
-              <div className="flex items-center space-x-1.5 sm:space-x-2 text-xs text-slate-500 mt-0.5 sm:mt-1">
-                <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                {participant.email ? (
-                  <>
-                    <span className="font-mono text-slate-700 truncate max-w-[160px] sm:max-w-xs text-[11px] sm:text-xs">
-                      {participant.email}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(participant.email, 'email')}
-                      className="p-1 text-slate-400 hover:text-slate-700 rounded-lg transition-colors cursor-pointer shrink-0"
-                      title="Copier l'email"
-                    >
-                      {copiedKey === 'email' ? (
-                        <Check className="w-3.5 h-3.5 text-slate-500" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                  </>
-                ) : (
-                  <span className="italic text-slate-400 text-xs">Email non renseigné</span>
-                )}
-              </div>
+              {getParticipantSubtitle(participantWithReg) ? (
+                <div className="flex items-center space-x-1.5 text-xs text-slate-600 mt-0.5 sm:mt-1">
+                  <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="font-mono text-slate-700 truncate max-w-[180px] sm:max-w-xs text-[11px] sm:text-xs">
+                    {getParticipantSubtitle(participantWithReg)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(getParticipantSubtitle(participantWithReg), 'contact')}
+                    className="p-1 text-slate-400 hover:text-slate-700 rounded-lg transition-colors cursor-pointer shrink-0"
+                    title="Copier"
+                  >
+                    {copiedKey === 'contact' ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              ) : registration.createdAt ? (
+                <div className="text-[11px] text-slate-400 mt-0.5">
+                  Inscrit le {new Date(registration.createdAt).toLocaleDateString('fr-FR')}
+                </div>
+              ) : null}
             </div>
           </div>
 

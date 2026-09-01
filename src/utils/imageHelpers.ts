@@ -89,12 +89,13 @@ export function getConferenceImage(eventId: string, title: string, customImage?:
 }
 
 /**
- * Get an avatar URL for a participant email or return null for initials fallback
+ * Get an avatar URL for a participant based on id, name, or email, or return null for initials fallback
  */
-export function getParticipantAvatar(email?: string): string | null {
-  if (!email) return null;
-  const cleanEmail = email.toLowerCase().trim();
-  return PARTICIPANT_AVATARS[cleanEmail] || null;
+export function getParticipantAvatar(idOrName?: string): string | null {
+  if (!idOrName) return null;
+  const clean = idOrName.toLowerCase().trim();
+  if (PARTICIPANT_AVATARS[clean]) return PARTICIPANT_AVATARS[clean];
+  return null;
 }
 
 /**

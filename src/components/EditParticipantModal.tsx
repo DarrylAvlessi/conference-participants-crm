@@ -2,7 +2,6 @@ import { useState, useEffect, type FormEvent } from 'react';
 import {
   X,
   User,
-  Mail,
   Plus,
   Trash2,
   Save,
@@ -34,7 +33,6 @@ export function EditParticipantModal({
 }: EditParticipantModalProps) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
   const [followupStatus, setFollowupStatus] = useState<FollowupStatus>('NOT_STARTED');
   const [assignedFollowupStaffName, setAssignedFollowupStaffName] = useState('');
   const [mentoringStatus, setMentoringStatus] = useState<MentoringStatus>('NOT_REQUESTED');
@@ -52,7 +50,6 @@ export function EditParticipantModal({
       const { participant, registration } = participantWithReg;
       setFirstName(participant.first_name || '');
       setLastName(participant.last_name || '');
-      setEmail(participant.email || '');
       setFollowupStatus(registration.followupStatus || 'NOT_STARTED');
       setAssignedFollowupStaffName(registration.assignedFollowupStaffName || '');
       setMentoringStatus(registration.mentoringStatus || 'NOT_REQUESTED');
@@ -98,8 +95,8 @@ export function EditParticipantModal({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!firstName.trim() && !lastName.trim() && !email.trim()) {
-      setErrorMsg('Veuillez renseigner au moins un champ d’identification (prénom, nom ou e-mail).');
+    if (!firstName.trim() && !lastName.trim() && answersList.length === 0) {
+      setErrorMsg('Veuillez renseigner au moins une information (nom, prénom ou informations).');
       return;
     }
 
@@ -120,7 +117,6 @@ export function EditParticipantModal({
         registrationId: participantWithReg.registration.id,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        email: email.trim(),
         assignedFollowupStaffName: assignedFollowupStaffName.trim(),
         assignedMentorName: mentoringStatus === 'ASSIGNED' ? assignedMentorName.trim() : '',
         followupStatus,
@@ -218,22 +214,6 @@ export function EditParticipantModal({
                   onChange={(e) => setLastName(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
                 />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Adresse e-mail
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  placeholder="email@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 font-mono"
-                />
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
               </div>
             </div>
           </div>

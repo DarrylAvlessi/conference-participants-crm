@@ -3,12 +3,12 @@ import {
   X,
   Calendar,
   Clock,
-  Sparkles,
   UploadCloud,
   ImageIcon,
   Trash2,
   ExternalLink,
   Check,
+  Sparkles,
 } from 'lucide-react';
 import { createConferenceEvent } from '../firebase/service';
 import { compressAndResizeImage, POSTER_PRESETS } from '../utils/imageHelpers';
@@ -140,15 +140,6 @@ export function NewEventModal({
     }
   };
 
-  const handlePreFillSample = () => {
-    setTitle('Excellence et Stratégie de Carrière 2026');
-    setDate('2026-10-24');
-    setStartTime('15:00');
-    setEndTime('17:30');
-    setDescription('Conférence interactive pour étudiants et jeunes diplômés.');
-    setPosterUrl(POSTER_PRESETS[0].url);
-  };
-
   return (
     <div
       id="new-event-modal-backdrop"
@@ -186,19 +177,9 @@ export function NewEventModal({
 
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-slate-700">
-                Titre de la conférence *
-              </label>
-              <button
-                type="button"
-                onClick={handlePreFillSample}
-                className="text-xs text-slate-600 hover:text-slate-700 font-semibold flex items-center space-x-1 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Remplir exemple</span>
-              </button>
-            </div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Titre de la conférence *
+            </label>
             <input
               id="new-event-title-input"
               type="text"

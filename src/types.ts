@@ -60,7 +60,6 @@ export interface ParticipantWithRegistration {
 }
 
 export interface CSVColumnMapping {
-  emailField?: string;
   firstNameField?: string;
   lastNameField?: string;
 }
